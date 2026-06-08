@@ -1,0 +1,15 @@
+#ifndef SQRTORAM_OH
+#define SQRTORAM_OH
+#include <copy.oh>
+
+typedef struct OcSqrtOram OcSqrtOram;
+typedef void (*ocBlockAccessFunction)(OcCopy *, void *, void *) obliv;
+
+void ocSqrtOramAccessObliv(OcSqrtOram* ram, obliv int index,ocBlockAccessFunction fn, void* data) obliv;
+void ocSqrtOramReadObliv(OcSqrtOram* ram,obliv int index,void* data) obliv;
+void ocSqrtOramWriteObliv(OcSqrtOram* ram,void* data,obliv int index) obliv;
+
+OcSqrtOram* ocSqrtOramNew(OcCopy* cpy,void* data,int n);
+void ocSqrtOramRelease(OcSqrtOram* ram);
+
+#endif

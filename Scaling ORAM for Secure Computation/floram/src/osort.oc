@@ -1,0 +1,55 @@
+#include "osort.oh"
+
+static void * element(OcCopy* cpy,void * arr, int x) obliv {
+	return x*cpy->eltsize+(char*)arr;
+}
+
+static void osort_batcher_swap(OcCopy * cpy, void* data, void* temp, size_t step, size_t start,size_t end, osort_cmp_function cmpFn) {
+	size_t ii;
+	for(ii=start; ii+step<end; ii+=step*2) {
+		obliv bool swapThisElement = cmpFn(cpy, element(cpy, data, ii), element(cpy, data, ii+step)) > 0;
+		ocSwapCondN(cpy, element(cpy, data, ii), element(cpy, data, ii+step), temp, &swapThisElement, 1);
+	}
+}
+
+static void osort_batcher_merge (OcCopy * cpy, void* data, void* temp, size_t step, size_t start, size_t mid, size_t end, osort_cmp_function cmpFn) {
+	if (end<=step) return;
+	osort_batcher_merge(cpy, data, temp, 2*step, start, mid, end, cmpFn);
+	osort_batcher_merge(cpy, data, temp, 2*step, start+step, mid, end, cmpFn);
+	size_t half = (mid-start+step-1)/step;
+	osort_batcher_swap(cpy, data, temp, step, start+step*(half%2==0), end, cmpFn);
+}
+
+void osort_batcher_main(OcCopy * cpy, void * data, void* temp, size_t end, osort_cmp_function cmpFn) {
+	if (end <= 1) return;
+	size_t mid = end/2;
+	osort_batcher_main(cpy,data,temp,mid,cmpFn);
+	osort_batcher_main(cpy,data + mid * cpy->eltsize, temp, end - mid,cmpFn);
+	osort_batcher_merge(cpy,data, temp, 1,0,mid,end,cmpFn);
+}
+
+void osort_batcher(OcCopy * cpy, void * data, size_t end, osort_cmp_function cmpFn) {
+	void* temp = calloc(1, cpy->eltsize);
+	osort_batcher_main(cpy, data, temp, end, cmpFn);
+	free(temp);
+}
+
+void omerge_batcher(OcCopy * cpy, void * data, size_t mid, size_t end, osort_cmp_function cmpFn) {
+	void* temp = calloc(1, cpy->eltsize);
+	osort_batcher_merge(cpy,data,temp,1,0,mid,end,cmpFn);
+	free(temp);
+}
+
+void omerge_batcher_multiple_main(OcCopy * cpy, void * data, void * temp, size_t step, size_t end, osort_cmp_function cmpFn) {
+	if (end <= step) return;
+	size_t mid = step * ((end/step)/2);
+	omerge_batcher_multiple_main(cpy, data, temp, step, mid, cmpFn);
+	omerge_batcher_multiple_main(cpy, data + mid*cpy->eltsize, temp, step, end - mid, cmpFn);
+	osort_batcher_merge(cpy,data,temp,1,0,mid,end,cmpFn);
+}
+
+void omerge_batcher_multiple(OcCopy * cpy, void * data, size_t step, size_t end, osort_cmp_function cmpFn) {
+	void* temp = calloc(1, cpy->eltsize);
+	omerge_batcher_multiple_main(cpy, data, temp, step, end, cmpFn);
+	free(temp);
+}

@@ -1,0 +1,439 @@
+#include <obliv.oh>
+#include "oram.oh"
+#include "test_generic.h"
+
+#define TEXT_HELP_SUPPLEMENTARY "\
+  -e \x1b[4mNUMBER\x1b[0m, --element-count=\x1b[4mNUMBER\x1b[0m \n\t\ttest ORAMs of \x1b[4mNUMBER\x1b[0m elements\n\n\
+  -s \x1b[4mNUMBER\x1b[0m, --element-size=\x1b[4mNUMBER\x1b[0m \n\t\ttest ORAMs with elements containing \x1b[4mNUMBER\x1b[0m 32-bit words\n\n\
+  -o \x1b[4mTYPE\x1b[0m, --oram-type=\x1b[4mTYPE\x1b[0m \n\t\ttest only \x1b[4mTYPE\x1b[0m ORAMs. Valid types are \033[1msqrt\033[0m, \033[1mcircuit\033[0m, \033[1mfssl\033[0m, \033[1mfssl_cprg\033[0m, and \033[1mlinear\033[0m.\n\n"
+
+static const char options_string[] = "e:s:o:";
+static struct option long_options[] = {
+	{"element-count", required_argument, NULL, 'e'},
+	{"element-size", required_argument, NULL, 's'},
+	{"oram-type", required_argument, NULL, 'o'},
+	{0, 0, 0, 0}
+};
+
+static const char TESTNAME[] = "oram";
+
+#define ELCT_DEFAULT 256
+#define ELSZ_DEFAULT 1
+
+char* get_test_name() {
+	return TESTNAME;
+}
+
+char* get_supplementary_options_string() {
+	return options_string;
+}
+
+struct option* get_long_options() {
+	return long_options;
+}
+
+void print_supplementary_help() {
+	fprintf(stderr, TEXT_HELP_SUPPLEMENTARY);
+}
+
+void shuffle(size_t *array, size_t n) {
+	if (n > 1) {
+		size_t i;
+		for (i = 0; i < n - 1; i++) 
+		{
+		  size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
+		  int t = array[j];
+		  array[j] = array[i];
+		  array[i] = t;
+		}
+	}
+}
+
+const char* getOramName(oram_type mode) {
+	switch (mode) {
+		case ORAM_TYPE_SQRT:
+			return "Square-Root ORAM:";
+		case ORAM_TYPE_CIRCUIT:
+			return "Circuit ORAM:";
+		case ORAM_TYPE_LINEAR:
+			return "Linear Scan:";
+		case ORAM_TYPE_FSSL:
+			return "FSS Linear ORAM:";
+		case ORAM_TYPE_FSSL_CPRG:
+			return "FSSL CPRG ORAM:";
+		default:
+			return "Unknown";
+	}
+}
+
+void testOramType(oram_type mode, size_t elct, size_t elsz) {
+
+	{
+		uint32_t * input_raw = malloc(elct * elsz * sizeof(uint32_t));
+		size_t * order_raw = malloc(elct * sizeof(size_t));
+		obliv uint32_t * value = calloc(elsz, sizeof(obliv uint32_t));
+
+		for (size_t ii = 0; ii < elct; ii++) {
+			for (size_t jj = 0; jj < elsz; jj++) input_raw[ii*elsz+jj] = ocBroadcastInt(rand(), 1);
+			order_raw[ii] = ii;
+		}
+
+		shuffle(order_raw, elct);
+
+		OcCopy cpy = ocCopyIntN(elsz);
+
+		oram * o = oram_new(mode, &cpy, elct);
+
+		for (size_t ii = 0; ii < elct; ii++) {
+			obliv size_t index = feedOblivLLong(order_raw[ii], 1);
+			for (size_t jj = 0; jj < elsz; jj++) value[jj] = feedOblivInt(input_raw[ii*elsz+jj], 1);
+			oram_write(o, value, index);
+		}
+
+		bool success = true;
+		for (size_t ii = 0; ii < elct; ii++) {
+			uint32_t temp;
+			obliv size_t index = feedOblivLLong(order_raw[ii], 1);
+			oram_read(value, o, index);
+			bool thissuccess = true;
+			for (size_t jj = 0; jj < elsz; jj++){
+				revealOblivInt(&temp, value[jj], 0);
+				thissuccess &= (temp == input_raw[ii*elsz+jj]);
+			}
+			success &= thissuccess;
+		}
+
+		oram_free(o);
+		free(input_raw);
+		free(order_raw);
+		free(value);
+
+		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_write/oram_read", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+
+	}
+
+	{
+		uint32_t * input_raw = malloc(elct * elsz * sizeof(uint32_t));
+		size_t * order_raw = malloc(elct * sizeof(size_t));
+		obliv uint32_t * value = calloc(elsz, sizeof(obliv uint32_t));
+
+		for (size_t ii = 0; ii < elct; ii++) {
+			for (size_t jj = 0; jj < elsz; jj++) input_raw[ii*elsz+jj] = ocBroadcastInt(rand(), 1);
+			order_raw[ii] = ii;
+		}
+
+		shuffle(order_raw, elct);
+
+		OcCopy cpy = ocCopyIntN(elsz);
+
+		oram * o = oram_new(mode, &cpy, elct);
+
+		for (size_t ii = 0; ii < elct; ii++) {
+			size_t index = ocBroadcastLLong(order_raw[ii], 1);
+			for (size_t jj = 0; jj < elsz; jj++) value[jj] = feedOblivInt(input_raw[ii*elsz+jj], 1);
+			oram_write_public(o, value, index);
+		}
+
+		bool success = true;
+
+		for (size_t ii = 0; ii < elct; ii++) {
+			uint32_t temp;
+			size_t index = ocBroadcastLLong(order_raw[ii], 1);
+			oram_read_public(value, o, index);
+			for (size_t jj = 0; jj < elsz; jj++){
+				revealOblivInt(&temp, value[jj], 0);
+				success &= (temp == input_raw[ii*elsz+jj]);
+			}
+		}
+
+		oram_free(o);
+		free(input_raw);
+		free(order_raw);
+		free(value);
+
+		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_write_public/oram_read_public", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+
+	}
+
+	{
+		uint32_t * raw_value = calloc(elsz, sizeof(uint32_t));
+		obliv uint32_t * value = calloc(elsz, sizeof(obliv uint32_t));
+		uint32_t * expected_output = calloc(elsz*elct, sizeof(uint32_t));
+
+		OcCopy cpy = ocCopyIntN(elsz);
+
+		oram * o = oram_new(mode, &cpy, elct);
+
+		bool success = true;
+		for (size_t ii = 0; ii < 2*elct; ii++) {
+			size_t raw_index = ocBroadcastInt(rand()%elct,1);
+			obliv size_t index = feedOblivLLong(raw_index, 1);
+			if (ocBroadcastInt(rand()%2,1)) {
+				for (size_t jj = 0; jj < elsz; jj++) {
+					raw_value[jj] = ocBroadcastInt(rand(),1);
+					expected_output[raw_index * elsz + jj] = raw_value[jj];
+					value[jj] = feedOblivInt(raw_value[jj], 1);
+				}
+				if (ocBroadcastInt(rand()%2,1)) {
+					oram_write(o, value, index);
+				} else {
+					oram_write_public(o, value, raw_index);
+				}
+			} else {
+				if (ocBroadcastInt(rand()%2,1)) {
+					oram_read(value, o, index);
+				} else {
+					oram_read_public(value, o, raw_index);
+				}
+				uint32_t temp;
+				for (size_t jj = 0; jj < elsz; jj++) {
+					revealOblivInt(&temp, value[jj], 0);
+					success &= (temp == expected_output[raw_index*elsz+jj]);
+				}
+			}
+		}
+
+		for (size_t ii = 0; ii < elct; ii++) {
+			uint32_t temp;
+			oram_read_public(value, o, ii);
+			for (size_t jj = 0; jj < elsz; jj++){
+				revealOblivInt(&temp, value[jj], 0);
+				success &= (temp == expected_output[ii*elsz+jj]);
+			}
+		}
+
+		oram_free(o);
+		free(raw_value);
+		free(expected_output);
+		free(value);
+
+		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "2n random private/public accesses", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+
+	}
+
+	{
+		uint32_t * input_raw = malloc(elct * elsz * sizeof(uint32_t));
+		size_t * order_raw = malloc(elct * sizeof(size_t));
+		obliv uint32_t * input = calloc(elct, elsz*sizeof(obliv uint32_t));
+		obliv uint32_t * value = calloc(elsz, sizeof(obliv uint32_t));
+
+		for (int ii = 0; ii < elct; ii++) {
+			for (size_t jj = 0; jj < elsz; jj++) input_raw[ii*elsz+jj] = ocBroadcastInt(rand(), 1);
+			order_raw[ii] = ii;
+		}
+
+		shuffle(order_raw, elct);
+
+		for (size_t ii = 0; ii < elct; ii++) {
+			for (size_t jj = 0; jj < elsz; jj++) input[ocBroadcastInt(order_raw[ii], 1)*elsz+jj] = feedOblivInt(input_raw[ii*elsz+jj], 1);
+		}
+
+		OcCopy cpy = ocCopyIntN(elsz);
+
+		oram * o = oram_from_array(mode, &cpy, elct, input);
+
+		bool success = true;
+
+		for (size_t ii = 0; ii < elct; ii++) {
+			uint32_t temp;
+			size_t index = ocBroadcastLLong(order_raw[ii], 1);
+			oram_read_public(value, o, index);
+			for (size_t jj = 0; jj < elsz; jj++){
+				revealOblivInt(&temp, value[jj], 0);
+				success &= (temp == input_raw[ii*elsz+jj]);
+			}
+		}
+
+		oram_free(o);
+		free(input_raw);
+		free(order_raw);
+		free(input);
+		free(value);
+
+		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_from_array", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+
+	}
+
+	{
+		uint32_t * input_raw = malloc(elct * elsz * sizeof(uint32_t));
+		uint32_t * expected_output = malloc(elct * elsz * sizeof(uint32_t));
+		obliv uint32_t * value = calloc(elsz, sizeof(obliv uint32_t));
+
+		for (size_t ii = 0; ii < elct; ii++) {
+			for (size_t jj = 0; jj < elsz; jj++) input_raw[ii*elsz+jj] = rand();
+			for (size_t jj = 0; jj < elsz; jj++) expected_output[ii*elsz+jj] = ocBroadcastInt(input_raw[ii*elsz+jj], 1) ^ ocBroadcastInt(input_raw[ii*elsz+jj], 2);
+		}
+
+		OcCopy cpy = ocCopyIntN(elsz);
+
+		oram * o = oram_from_shares(mode, &cpy, elct, input_raw);
+
+		bool success = true;
+
+		for (size_t ii = 0; ii < elct; ii++) {
+			uint32_t temp;
+			oram_read_public(value, o, ii);
+			for (size_t jj = 0; jj < elsz; jj++){
+				revealOblivInt(&temp, value[jj], 0);
+				success &= (temp == expected_output[ii*elsz+jj]);
+			}
+		}
+
+		oram_free(o);
+		free(input_raw);
+		free(expected_output);
+		free(value);
+
+		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_from_shares", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+
+	}
+
+	{
+		OcCopy cpy = ocCopyIntN(elsz);
+		oram * o = oram_new(mode, &cpy, elct);
+		obliv uint32_t * value = calloc(elsz, sizeof(obliv uint32_t));
+
+		bool success = true;
+
+		for (long long int ii = -2; ii < 2; ii++) {
+			bool temp;
+			obliv bool write_success;
+			obliv size_t index = feedOblivLLong(ii, 1);
+			for (size_t jj = 0; jj < elsz; jj++) value[jj] = feedOblivInt(rand(), 1);
+			write_success = oram_write(o, value, index);
+			revealOblivBool(&temp, write_success, 0);
+			success &= (temp == true && (ii >= 0 || ii < elct)) != (temp == false && (ii < 0 || ii >= elct));
+		}
+
+		for (long long int ii = elct -2; ii < elct +2; ii++) {
+			bool temp;
+			obliv bool write_success;
+			obliv size_t index = feedOblivLLong(ii, 1);
+			for (size_t jj = 0; jj < elsz; jj++) value[jj] = feedOblivInt(rand(), 1);
+			write_success = oram_write(o, value, index);
+			revealOblivBool(&temp, write_success, 0);
+			success &= (temp == true && (ii >= 0 || ii < elct)) != (temp == false && (ii < 0 || ii >= elct));
+		}
+
+		oram_free(o);
+		free(value);
+
+		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_write - bounds checking", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+	}
+
+	{
+		uint32_t * input_raw = malloc(elct * elsz * sizeof(uint32_t));
+		size_t * order_raw = malloc(elct * sizeof(size_t));
+		obliv uint32_t * input = calloc(elct, elsz * sizeof(obliv uint32_t));
+		obliv uint32_t * value = calloc(elsz, sizeof(obliv uint32_t));
+
+		for (size_t ii = 0; ii < elct; ii++) {
+			for (size_t jj = 0; jj < elsz; jj++) input_raw[ii*elsz+jj] = ocBroadcastInt(rand(), 1);
+			order_raw[ii] = ii;
+		}
+
+		shuffle(order_raw, elct);
+
+		for (size_t ii = 0; ii < elct; ii++) {
+			for (size_t jj = 0; jj < elsz; jj++) input[ocBroadcastInt(order_raw[ii], 1)*elsz+jj] = feedOblivInt(input_raw[ii*elsz+jj], 1);
+		}
+
+		OcCopy cpy = ocCopyIntN(elsz);
+
+		oram * o = oram_from_array(mode, &cpy, elct, input);
+
+		bool success = true;
+
+		for (long long int ii = -2; ii < 2; ii++) {
+			bool temp;
+			obliv bool read_success;
+			obliv size_t index = feedOblivLLong(ii, 1);
+			read_success = oram_read(value, o, index);
+			revealOblivBool(&temp, read_success, 0);
+			success &= (temp == true && (ii >= 0 || ii < elct)) != (temp == false && (ii < 0 || ii >= elct));
+		}
+
+		for (long long int ii = elct -2; ii < elct + 2; ii++) {
+			bool temp;
+			obliv bool read_success;
+			obliv size_t index = feedOblivLLong(ii, 1);
+			read_success = oram_read(value, o, index);
+			revealOblivBool(&temp, read_success, 0);
+			success &= (temp == true && (ii >= 0 || ii < elct)) != (temp == false && (ii < 0 || ii >= elct));
+		}
+
+		oram_free(o);
+		free(input_raw);
+		free(order_raw);
+		free(input);
+		free(value);
+
+		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_read - bounds checking", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+	}
+
+	fprintf(stderr, "\n");
+
+}
+
+void test_main(void*varg) {
+
+	bool all_orams = true;
+	oram_type manual_type;
+	size_t elct = ELCT_DEFAULT;
+	size_t elsz = ELSZ_DEFAULT;
+
+	args_t * args_pass = varg;
+	int arg;
+	optind = 0; // this allows us to getopt a second time
+	while ((arg = getopt_long(args_pass->argc, args_pass->argv, options_string, long_options, NULL)) != -1) {
+		if (arg == 'e') {
+			elct = atoll(optarg);
+			if (elct <= 0) {
+				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
+				return;
+			}
+		} else if (arg == 's') {
+			elsz = atoll(optarg);
+			if (elsz <= 0) {
+				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
+				return;
+			}
+		} else if (arg == 'o') {
+			if (strcmp(optarg,"sqrt") == 0) {
+				manual_type = ORAM_TYPE_SQRT;
+			} else if (strcmp(optarg,"circuit") == 0) {
+				manual_type = ORAM_TYPE_CIRCUIT;
+			} else if (strcmp(optarg,"linear") == 0) {
+				manual_type = ORAM_TYPE_LINEAR;
+			} else if (strcmp(optarg,"fssl") == 0) {
+				manual_type = ORAM_TYPE_FSSL;
+			} else if (strcmp(optarg,"fssl_cprg") == 0) {
+				manual_type = ORAM_TYPE_FSSL_CPRG;
+			} else {
+				fprintf (stderr, "Invalid argument for -%c.\n", arg);
+				return;
+			}
+			all_orams = false;
+		} else if (arg == '?' || arg == ':') {
+			if (optopt == 'o' || optopt == 'e' || optopt == 's') {
+				fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+				return;
+			} else {
+				fprintf (stderr, "Option -%c not recognized.\n", optopt);
+				return;
+			}
+		} else {
+			abort();
+		}
+	}
+
+	if (all_orams) {
+		testOramType(ORAM_TYPE_FSSL, elct, elsz);
+		testOramType(ORAM_TYPE_FSSL_CPRG, elct, elsz);
+		testOramType(ORAM_TYPE_SQRT, elct, elsz);
+		testOramType(ORAM_TYPE_CIRCUIT, elct, elsz);
+		testOramType(ORAM_TYPE_LINEAR, elct, elsz);
+	} else {
+		testOramType(manual_type, elct, elsz);
+	}
+}

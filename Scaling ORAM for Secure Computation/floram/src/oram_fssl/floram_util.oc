@@ -1,0 +1,59 @@
+#include "floram_util.oh"
+#include "../oaes.oh"
+
+void* element(OcCopy* cpy,void* arr,uint32_t x) obliv { return x*cpy->eltsize+(uint8_t*)arr; }
+
+
+static int sslinits = 0;
+static obliv uint8_t* sslzero;
+static oaes_ctx * sslctx;
+static OcCopy sslcpy;
+
+void online_expand_init() {
+	if (sslinits == 0) {
+		sslzero = calloc(1, 16 * sizeof(obliv uint8_t));
+		sslctx = oaes_128_ctx_ctr_new(sslzero, sslzero);
+		sslcpy = ocCopyCharN(16);
+	}
+	sslinits++;
+}
+
+void online_expand_deinit() {
+	if (sslinits == 1) {
+		free(sslzero);
+		sslzero = NULL;
+		oaes_128_ctx_free(sslctx);
+		sslctx = NULL;
+	}
+	sslinits--;
+}
+
+void online_expand(void * dest, void * src, size_t n) obliv {
+	~obliv() {
+		oaes_128_rekey(sslctx, src, sslzero);
+	}
+	size_t ii = 0;
+	for (; ii < n/2; ii++) {
+		oaes_128_encdec_double(element(&sslcpy, dest, ii*2), element(&sslcpy, dest, ii*2+1), sslctx, NULL, NULL);
+	}
+	if (n%2 != 0) oaes_128_encdec(element(&sslcpy, dest, ii*2), sslctx, NULL);
+}
+
+void online_prg_keyschedule_double(obliv uint8_t ** r1, obliv uint8_t ** r2, uint8_t * src1, uint8_t * src2) {
+	*r1 = calloc(176, sizeof(obliv uint8_t));
+	*r2 = calloc(176, sizeof(obliv uint8_t));
+	uint8_t * r1local = offline_prg_keyschedule(src1); 
+	for (size_t ii = 0; ii < 176; ii++) (*r1)[ii] = r1local[ii];
+	free(r1local);
+	uint8_t * r2local = offline_prg_keyschedule(src2); 
+	for (size_t ii = 0; ii < 176; ii++) (*r2)[ii] = r2local[ii];
+	free(r2local);
+}
+
+void online_prg_double(obliv uint8_t * dest1, obliv uint8_t * dest2, obliv uint8_t * src1, obliv uint8_t * src2, obliv uint8_t * r1, obliv uint8_t * r2) obliv {
+	oaes_128_from_expanded_double(dest1, dest2, r1, r2, src1, src2);
+	for (size_t ii = 0; ii < BLOCKSIZE; ii++) {
+		dest1[ii] ^= src1[ii];
+		dest2[ii] ^= src2[ii];
+	}
+}

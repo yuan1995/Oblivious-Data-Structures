@@ -1,0 +1,361 @@
+#include "floram.oh"
+#include "floram_util.oh"
+#include "scanrom.oh"
+#include "fss.oh"
+#include "fss_cprg.oh"
+#include "ackutil.h"
+#include <obliv.h>
+#include <copy.oh>
+
+struct floram {
+	OcCopy* cpy;
+	OcCopy memblockcpy;
+	size_t memblocksize;
+	scanwrom* wrom;
+	scanrom* rom;
+	void* fss;
+	void* fss_smaller;
+	obliv uint8_t* stash;
+	obliv int32_t* stashi;
+	obliv uint8_t* activeblock_delta;
+	uint8_t* blockvector_local;
+	bool * bitvector_local;
+	uint8_t* rom_key_half;
+	obliv uint8_t* blocktemp;
+	uint8_t* blocktemp_local;
+	uint64_t period;
+	uint64_t progress;
+	uint64_t size;
+	uint64_t blockcount;
+	uint32_t blockmultiple;
+	uint32_t elementsperblock;
+	bool cprg;
+	void (*ff)(void*);
+	void (*fgb)(obliv uint8_t *, uint8_t *, bool *, void *, obliv size_t);
+	void (*fgbc)(obliv uint8_t *, uint8_t *, bool *, void *, obliv size_t, facb_fn, void *);
+};
+
+typedef struct facb_pass {
+	floram * ram;
+	obliv size_t blockid;
+	obliv size_t subblockid;
+	obliv bool found;
+} facb_pass;
+
+void floram_refresh(floram* ram) {
+#ifdef ORAM_PROFILE_SCHEDULING
+	printf("BEGIN REFRESH %lld\n", current_timestamp());
+#endif
+
+	ram->progress = 0;
+	get_random_bytes(ram->rom_key_half, KEYSIZE);
+	scanrom_set_key(ram->rom, ram->rom_key_half);
+	scanrom_import_from_scanwrom(ram->rom, ram->wrom);
+	for (size_t ii = 0; ii < ram->period; ii++) {
+		ram->stashi[ii] = -1;
+	}
+
+#ifdef ORAM_PROFILE_SCHEDULING
+	printf("END REFRESH %lld\n", current_timestamp());
+#endif
+}
+
+void floram_scan_callback(facb_pass * input, ProtocolDesc *pd) {
+	if (pd != NULL) ocSetCurrentProto(pd);
+
+#ifdef ORAM_PROFILE_SCHEDULING
+	printf("BEGIN STASH SCAN %lld\n", current_timestamp());
+#endif
+
+	floram * ram = input->ram;
+	obliv size_t blockid = input->blockid;
+	obliv bool found = false;
+	if (ram->progress > 0) {
+		obliv if(ram->stashi[0] != -1) {
+			ocCopy(&ram->memblockcpy, element(&ram->memblockcpy, ram->stash, ram->progress), ram->stash);
+			ram->stashi[ram->progress] = ram->stashi[0];
+		}
+		ram->stashi[0] = -1;
+		for (size_t ii = 1; ii <= ram->progress; ii ++) {
+			obliv if (blockid == ram->stashi[ii]) {
+				ocCopy(&ram->memblockcpy, ram->stash, element(&ram->memblockcpy, ram->stash, ii));
+				ram->stashi[0] = ram->stashi[ii];
+				ram->stashi[ii] = -1;
+				found = true;
+			}
+		}
+	}
+	input->found=found;
+
+	// this protocol may not do anything else for a while, but other threads could be waiting for it
+	oflush(ocCurrentProto());
+
+#ifdef ORAM_PROFILE_SCHEDULING
+	printf("END STASH SCAN %lld\n", current_timestamp());
+#endif
+}
+
+void floram_scan_callback_ro(facb_pass * input, ProtocolDesc *pd) {
+	if (pd != NULL) ocSetCurrentProto(pd);
+
+#ifdef ORAM_PROFILE_SCHEDULING
+	printf("BEGIN STASH SCAN %lld\n", current_timestamp());
+#endif
+
+	floram * ram = input->ram;
+	obliv size_t blockid = input->blockid;
+	obliv bool found = false;
+	if (ram->progress > 0) {
+		obliv if(ram->stashi[0] != -1) {
+			ocCopy(&ram->memblockcpy, element(&ram->memblockcpy, ram->stash, ram->progress), ram->stash);
+			ram->stashi[ram->progress] = ram->stashi[0];
+		}
+		ram->stashi[0] = -1;
+		for (size_t ii = 1; ii <= ram->progress; ii ++) {
+			obliv if (blockid == ram->stashi[ii]) {
+				ocCopy(&ram->memblockcpy, ram->stash, element(&ram->memblockcpy, ram->stash, ii));
+				found = true;
+			}
+		}
+	}
+	input->found=found;
+
+	// this protocol may not do anything else for a while, but other threads could be waiting for it
+	oflush(ocCurrentProto());
+
+#ifdef ORAM_PROFILE_SCHEDULING
+	printf("END STASH SCAN %lld\n", current_timestamp());
+#endif
+}
+
+void floram_read(void* data, floram* ram, obliv size_t index) obliv {
+#ifdef ORAM_PROFILE_SCHEDULING
+	~obliv() printf("BEGIN READ %lld\n", current_timestamp());
+#endif
+
+	obliv size_t blockid = index / ram->elementsperblock;
+	obliv size_t subblockid = index % ram->elementsperblock;
+
+	facb_pass facb_data = {.ram=ram, .blockid = blockid, .subblockid = subblockid, .found = false};
+
+	~obliv() ram->fgbc(ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, ram->fss_smaller, blockid/(BLOCKSIZE*8), floram_scan_callback_ro, &facb_data);
+
+	obliv if (facb_data.found == false) {
+		scanrom_read_with_blockvector(ram->stash, ram->rom, blockid, ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local);
+	}
+	ram->stashi[0] = -1;
+
+	for (size_t ii = 0; ii < ram->elementsperblock; ii ++) {
+		obliv if (subblockid == ii) ocCopy(ram->cpy, data, element(ram->cpy, ram->stash, ii));
+	}
+
+#ifdef ORAM_PROFILE_SCHEDULING
+	~obliv() printf("END READ %lld\n\n", current_timestamp());
+#endif
+}
+
+void floram_apply(floram* ram, void* data, floram_block_access_function fn, obliv size_t index) obliv {
+#ifdef ORAM_PROFILE_SCHEDULING
+	~obliv() printf("BEGIN APPLY %lld\n", current_timestamp());
+#endif
+
+	obliv size_t blockid = index / ram->elementsperblock;
+	obliv size_t subblockid = index % ram->elementsperblock;
+
+	facb_pass facb_data = {.ram=ram, .blockid = blockid, .subblockid = subblockid, .found = false};
+
+	~obliv() ram->fgbc(ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, ram->fss, blockid, floram_scan_callback, &facb_data);
+
+	obliv if (facb_data.found == false) {
+		scanrom_read_with_bitvector(ram->stash, ram->rom, blockid, ram->bitvector_local);
+		ram->stashi[0] = blockid;
+	}
+
+#ifdef ORAM_PROFILE_SCHEDULING
+	~obliv() printf("BEGIN FUNCTION APPLICATION %lld\n", current_timestamp());
+#endif
+
+	ocCopy(&ram->memblockcpy, ram->blocktemp, ram->stash);
+
+	for (uint32_t jj = 0; jj < ram->elementsperblock; jj ++) {
+		obliv if (subblockid == jj) fn(ram->cpy, element(ram->cpy, ram->stash, jj), data);
+	}
+
+#ifdef ORAM_PROFILE_SCHEDULING
+	~obliv() printf("END FUNCTION APPLICATION %lld\n", current_timestamp());
+#endif
+
+	scanwrom_write_with_blockvector(ram->wrom, ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, ram->blocktemp, ram->stash);
+
+	~obliv() {
+		ram->progress++;
+		if (ram->progress == ram->period) floram_refresh(ram);
+	}
+
+#ifdef ORAM_PROFILE_SCHEDULING
+	~obliv() printf("END APPLY %lld\n\n", current_timestamp());
+#endif
+}
+
+void writer_function(OcCopy * cpy, void * oram_block, void * ext_block) obliv {
+  ocCopy(cpy, oram_block, ext_block);
+}
+
+void floram_write(floram* ram, void* data, obliv size_t index) obliv {
+	floram_apply(ram, data, writer_function, index);
+}
+
+void floram_read_public(void* data, floram* ram, size_t index) obliv {
+	size_t blockid = index / ram->elementsperblock;
+	size_t subblockid = index % ram->elementsperblock;
+
+	~obliv() scanwrom_read(ram->blocktemp, ram->wrom, blockid);
+	for (uint32_t jj = 0; jj < ram->elementsperblock; jj ++) {
+		if (subblockid == jj) ocCopy(ram->cpy, data, element(ram->cpy, ram->blocktemp, jj));
+	}
+}
+
+void floram_apply_public(floram* ram, void* data, floram_block_access_function fn, size_t index) obliv {
+	size_t blockid = index / ram->elementsperblock;
+	size_t subblockid = index % ram->elementsperblock;
+
+	~obliv()  scanwrom_read(ram->blocktemp, ram->wrom, blockid);
+	for (uint32_t jj = 0; jj < ram->elementsperblock; jj ++) {
+		if (subblockid == jj) fn(ram->cpy, element(ram->cpy, ram->blocktemp, jj), data);
+	}
+	for (size_t jj = 0; jj < ram->progress; jj++) {
+		obliv if (blockid == ram->stashi[jj]) ocCopy(&ram->memblockcpy, element(&ram->memblockcpy, ram->stash, jj), ram->blocktemp);
+	}
+	~obliv() {
+		scanwrom_write(ram->wrom, ram->blocktemp, blockid);
+		scanrom_import_from_scanwrom_range(ram->rom, ram->wrom, blockid, 1);
+	}
+}
+
+void floram_write_public(floram* ram, void* data, size_t index) obliv {
+	floram_apply_public(ram, data, writer_function, index);
+}
+
+floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg, bool from_shares) {
+	floram * ram = malloc(sizeof(floram));
+	ram->cpy = cpy;
+	ram->size = n;
+	ram->progress = 0;
+	ram->cprg = cprg;
+
+	size_t elementsize = cpy->eltsize/sizeof(obliv uint8_t);
+	if (elementsize > BLOCKSIZE/2) {
+		ram->blockcount = n;
+		ram->blockmultiple = ((elementsize / BLOCKSIZE) + (elementsize%BLOCKSIZE?1:0));
+		ram->elementsperblock = 1;
+	} else {
+		ram->blockmultiple = 1;
+		ram->elementsperblock = BLOCKSIZE/elementsize;
+		ram->blockcount = (n/ram->elementsperblock) + (n%ram->elementsperblock?1:0);
+	}
+
+	ram->memblocksize = BLOCKSIZE * ram->blockmultiple;
+	ram->memblockcpy=ocCopyCharN(ram->memblocksize);
+
+	if (cprg) {
+		ram->fgb = fss_cprg_getblockvector;
+		ram->fgbc = fss_cprg_getblockvector_with_callback;
+		ram->ff = fss_cprg_free;
+		ram->fss = fss_cprg_new(ram->blockcount, ram->blockmultiple);
+		ram->fss_smaller = fss_cprg_new((ram->blockcount+(BLOCKSIZE*8)-1)/(BLOCKSIZE*8), 1);
+	} else {
+		ram->fgb = fss_getblockvector;
+		ram->fgbc = fss_getblockvector_with_callback;
+		ram->ff = fss_free;
+		ram->fss = fss_new(ram->blockcount, ram->blockmultiple,  MIN(5, LOG2LL(ram->blockcount)));
+		ram->fss_smaller = fss_new((ram->blockcount+(BLOCKSIZE*8)-1)/(BLOCKSIZE*8), 1, MIN(5, LOG2LL((ram->blockcount+(BLOCKSIZE*8)-1)/(BLOCKSIZE*8))));
+	}
+
+	floram_pma(&ram->blockvector_local, 16, ram->blockcount * ram->memblocksize);
+	floram_pma(&ram->bitvector_local, 16, ram->blockcount * sizeof(bool));
+	ram->blocktemp_local = malloc(ram->memblocksize);
+	ram->activeblock_delta = calloc(1, ram->memblocksize * sizeof(obliv uint8_t));
+
+	// Based on B = 128*b; c = B*p/2+n*b/p = 64*p+n/p; dc/dp = 64-n/p^2; dc/dp = 0 when p = sqrt(n)/8
+	ram->period = (uint32_t)ceil(sqrt(ram->blockcount)/8);
+	ram->blocktemp = calloc(1, ram->memblockcpy.eltsize);
+	ram->stash = calloc(ram->period, ram->memblockcpy.eltsize);
+	ram->stashi = calloc(ram->period, sizeof(obliv size_t));
+	for (size_t ii = 0; ii < ram->period; ii++) {
+		ram->stashi[ii] = -1;
+	}
+
+	//Set initial romkey and wromkey. Each party is expected to supply a different random value
+	ram->rom_key_half = malloc(KEYSIZE);
+	get_random_bytes(ram->rom_key_half, KEYSIZE);
+
+
+	//Now fill the scanrom with data, if there is data with which to fill it
+	if (data != NULL) {
+
+		uint8_t * loadtemp_local;
+		floram_pma(&loadtemp_local, 16, ram->memblocksize*ram->blockcount);
+
+		if (from_shares) {
+
+			size_t blockid;
+			for (size_t ii = 0; ii < ram->size; ii++) {
+				blockid = ii / ram->elementsperblock;
+
+				size_t subblocksize = ram->elementsperblock*(cpy->eltsize/sizeof(obliv uint8_t));
+
+				memcpy(&loadtemp_local[blockid * ram->memblocksize], &data[blockid * subblocksize], subblocksize);
+			}
+
+			ram->wrom = scanwrom_new(ram->memblocksize, ram->blockcount);
+			scanwrom_write_xor_shares(ram->wrom, loadtemp_local, 0, ram->blockcount);
+
+		} else {
+
+			size_t blockid, subblockid;
+			for (size_t ii = 0; ii < ram->size; ii++) {
+				blockid = ii / ram->elementsperblock;
+				subblockid = ii % ram->elementsperblock;
+
+				size_t elosize = cpy->eltsize/sizeof(obliv uint8_t);
+
+				ocToSharedCharN(ocCurrentProto(), &loadtemp_local[blockid * ram->memblocksize + subblockid*elosize], ((obliv uint8_t *)element(cpy,data,ii)), elosize);
+			}
+			
+			ram->wrom = scanwrom_new(ram->memblocksize, ram->blockcount);
+			scanwrom_write_xor_shares(ram->wrom, loadtemp_local, 0, ram->blockcount);
+
+		}
+
+		free(loadtemp_local);
+
+		ram->rom = scanrom_new(ram->memblocksize, ram->blockcount, ram->rom_key_half);
+		scanrom_import_from_scanwrom(ram->rom, ram->wrom);
+
+	} else {
+
+		ram->wrom = scanwrom_new(ram->memblocksize, ram->blockcount);
+		scanwrom_clear(ram->wrom);
+
+		ram->rom = scanrom_new(ram->memblocksize, ram->blockcount, ram->rom_key_half);
+		scanrom_clear(ram->rom);
+	}
+
+	return ram;
+}
+
+void floram_free(floram* ram) {
+	ram->ff(ram->fss);
+	ram->ff(ram->fss_smaller);
+	scanrom_free(ram->rom);
+	scanwrom_free(ram->wrom);
+	free(ram->blocktemp);
+	free(ram->blocktemp_local);
+	free(ram->activeblock_delta);
+	free(ram->blockvector_local);
+	free(ram->bitvector_local);
+	free(ram->rom_key_half);
+	free(ram->stashi);
+	free(ram->stash);
+	free(ram);
+}
