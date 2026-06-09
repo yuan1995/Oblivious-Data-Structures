@@ -1,0 +1,4240 @@
+[
+    [
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "Circuit Structures for Improving Efficiency of Security and Privacy Tools"
+                    }
+                ],
+                "level": 1
+            },
+            "bbox": [
+                138,
+                109,
+                859,
+                132
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Samee Zahur and David Evans"
+                    }
+                ]
+            },
+            "bbox": [
+                390,
+                169,
+                606,
+                183
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "University of Virginia"
+                    }
+                ]
+            },
+            "bbox": [
+                426,
+                185,
+                575,
+                199
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "[samee, evans]@virginia.edu"
+                    }
+                ]
+            },
+            "bbox": [
+                401,
+                200,
+                596,
+                214
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Abstract—Several techniques in computer security, including generic protocols for secure computation and symbolic execution, depend on implementing algorithms in static circuits. Despite substantial improvements in recent years, tools built using these techniques remain too slow for most practical uses. They require transforming arbitrary programs into either Boolean logic circuits, constraint sets on Boolean variables, or other equivalent representations, and the costs of using these tools scale directly with the size of the input circuit. Hence, techniques for more efficient circuit constructions have benefits across these tools. We show efficient circuit constructions for various simple but commonly used data structures including stacks, queues, and associative maps. While current practice requires effectively copying the entire structure for each operation, our techniques take advantage of locality and batching to provide amortized costs that scale polylogarithmically in the size of the structure. We demonstrate how many common array usage patterns can be significantly improved with the help of these circuit structures. We report on experiments using our circuit structures for both generic secure computation using garbled circuits and automated test input generation using symbolic execution, and demonstrate order of magnitude improvements for both applications."
+                    }
+                ]
+            },
+            "bbox": [
+                86,
+                244,
+                486,
+                535
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "I. INTRODUCTION"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                217,
+                555,
+                351,
+                568
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Generic secure computation protocols and symbolic execution both require arbitrary algorithms to be converted into static circuits, and their efficiency depends critically on the size of the circuit. Therefore, we can improve the speed of these applications by finding efficient circuit constructions for various common programming constructs."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                575,
+                486,
+                666
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "We show efficient constructions for three common data structures: stacks, queues and associative maps. Our constructions are general enough to be used in both the applications. Our stack and queue provide conditional update operations using only amortized Θ(log n) gates for each operation, while associative map uses amortized "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( \\log ^ { 2 } n )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "gates for each access or update (where n is the maximum number of elements in the structure). We then show how various common array usage patterns can be rewritten using these data structures, thus obtaining far more efficient circuits for those cases (Section IV). Finally, we demonstrate that the use of these circuits indeed leads to significant speedups in practice (Section VI). We do this by manually replacing standard arrays with our circuit structures in various interesting applications of secure computation and automatic test-input generation (Section V)."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                667,
+                486,
+                909
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "In the next section, we present the motivation for our work emphasizing the commonality of static circuits across applications, followed by background on how programs are typically converted into circuits. Section VII discusses related work more broadly."
+                    }
+                ]
+            },
+            "bbox": [
+                508,
+                244,
+                913,
+                320
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "II. MOTIVATION"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                650,
+                327,
+                772,
+                340
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "There has been a long history of work designing efficient hardware implementations of Boolean circuits, starting with Shannon’s work in the 1930s [51]. Hardware circuit designers typically have to worry about circuit depth, gate delay, and power consumption, but view reuse as a design goal. Circuits used in several security applications are quite different. In these applications, each wire in the circuit holds a constant value during the entire execution. This is essential for privacy for secure computation applications, and necessary for test input generation where the goal is to find inputs that lead to a particular output. We call such static-value circuits, static circuits. For most applications, including the ones we focus on here, the cost of evaluating a static circuit follows directly from the number of gates in the circuit."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                345,
+                913,
+                571
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Static circuit structures are radically different from typical hardware circuits. A hardware circuit for adding a million integers, for instance, can fetch them one-by-one from memory, accumulating the sum using a single two-integer adder circuit. Describing the same computation with a static circuit requires a giant structure that includes a million copies of the adder circuit. One particular problem that stems from this difference is that random array access is horrendously expensive in static circuits. Each access of an n-element array requires a circuit of Θ(n) size where the entire array is multiplexed for the required element by the index being accessed (Figure 1). If the array access is performed in a loop, the corresponding circuit blows up in size extremely rapidly since static circuits cannot be reused."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                571,
+                913,
+                785
+            ]
+        },
+        {
+            "type": "image",
+            "content": {
+                "image_source": {
+                    "path": "images/edfe0275a38fe8bb17b445d7d0c4583acf6f8a4c8e50d24ca5cf02b5945e6656.jpg"
+                },
+                "content": "```mermaid\ngraph TD\n  A[\"a[i\"] := x] --> B[\"a[0\"] x]\n  B --> C[\"i==0\"]\n  C --> D[\"a'[0\"]]\n  D --> E[\"a'[1\"]]\n  E --> F[\"i==1\"]\n  F --> G[\"a'[1\"]]\n  G --> H[\"a'[2\"]]\n  H --> I[\"i==2\"]\n  I --> J[\"a'[2\"]]\n  J --> K[\"i==3\"]\n  K --> L[\"a'[3\"]]\n  L --> M[\"...\"]\n```",
+                "image_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 1. A single array access requiring n multiplexers."
+                    }
+                ],
+                "image_footnote": []
+            },
+            "sub_type": "flowchart",
+            "bbox": [
+                513,
+                803,
+                908,
+                875
+            ]
+        },
+        {
+            "type": "page_header",
+            "content": {
+                "page_header_content": [
+                    {
+                        "type": "text",
+                        "content": "In 34th IEEE Symposium on Security and Privacy (“Oakland”), San Francisco, May 2013"
+                    }
+                ]
+            },
+            "bbox": [
+                191,
+                53,
+                805,
+                70
+            ]
+        }
+    ],
+    [
+        {
+            "type": "image",
+            "content": {
+                "image_source": {
+                    "path": "images/8708be5608164e20f64407667255c9d2412c62db2ab42857398ad15a39c22410.jpg"
+                },
+                "content": "```mermaid\ngraph TD\n  A[\"a[i\"]++] --> B[\"+1\"]\n  B --> C[\"a[0\"]]\n  B --> D[\"+1\"]\n  D --> E[\"a[1\"]]\n  D --> F[\"+1\"]\n  F --> G[\"a[2\"]]\n  F --> H[\"+1\"]\n  H --> I[\"a[3\"]]\n  H --> J[\"+1\"]\n  J --> K[\"a[4\"]]\n    style A fill:#f9f,stroke:#333\n    style K fill:#f9f,stroke:#333\n```",
+                "image_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 2. In this case the index value becomes plain constants once the loop is unrolled. Since the index does not depend on unknown inputs, array access is much cheaper."
+                    }
+                ],
+                "image_footnote": []
+            },
+            "sub_type": "flowchart",
+            "bbox": [
+                114,
+                85,
+                450,
+                170
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Of course, there are simple cases where this is not a problem, particularly when the access is at positions known in advance (e.g., Figure 2). It is often not the case, however, that all access positions can be determined without knowing the input data. We concentrate on making efficient circuits for the cases in between these extremes: where we know that the array is accessed in some simple pattern, but the indices do depend to some degree on the input data. The overall insight is that most programs do not access arrays in ways that require the general linear multiplexer structure because the actual array accesses are limited in predictable ways. Here, we show how to amortize the cost of multiple accesses when the application either makes multiple accesses that can be performed in a batch, or has some locality in the indices accessed."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                248,
+                486,
+                474
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "In the following subsections, we describe our two target applications: generic secure computation protocols, and automated test-input generation using SAT solvers. We describe their typical use cases, their current state of the art, and how these applications depend on static circuits. Both applications require arbitrary programs to be expressed as static circuits, so efficient circuit constructions yield immediate efficiency gains for both applications."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                476,
+                486,
+                597
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "A. Generic Protocols for Secure Computation"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                83,
+                614,
+                397,
+                630
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Secure computation allows two (or more) parties to compute a function that depends on private inputs from both parties without revealing anything about either party’s private inputs to the other participant (other than what can be inferred from the function output). While there are many application-specific protocols for performing specific tasks securely [15, 42], recent advances in generic protocols enable arbitrary algorithms to be performed as secure computations. To execute any given program securely under such a protocol, it is first converted into a Boolean circuit representing the same computation. After this, the generic protocols specify mechanical ways in which any circuit can be converted into a protocol between parties to perform the same computation securely. The fastest such protocol currently known is Yao’s garbled circuits protocol [37, 54]. Recent implementations have demonstrated its practicality for many interesting applications including secure auctions [7, 33], fingerprint matching [30], financial data aggregation [6], data-mining [45], approximate string comparison, and privacy-preserving AES encryption [28]."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                637,
+                486,
+                909
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": []
+            },
+            "bbox": [
+                508,
+                93,
+                911,
+                123
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The static circuits needed for these secure computation protocols do not support fast random access to array elements. This is inherent, since the circuit must be constructed before the index being accessed is known. Any arbitrary array access requires a "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( n )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "-sized multiplexer circuit in the general case. While recent work by Dov Gordon et al. [23] has improved the situation for large arrays by with a hybrid protocol using oblivious RAM (ORAM), that approach still has a very high overhead. On the other hand, our approach can be orders of magnitude faster whenever it is applicable, which covers many common cases. (Section VII provides a more detailed discussion.)"
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                125,
+                911,
+                304
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Other generic secure computation protocols such as fully homomorphic encryption [17, 53], GMW [21], and NNOB [43] also use static circuit representations of the computation. Therefore our circuit structures are useful in all such protocols, although we only consider garbled circuits in our evaluation."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                305,
+                911,
+                395
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "B. Symbolic Execution on Programs"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                509,
+                406,
+                759,
+                421
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Another common application of static circuits is in symbolic program execution. Several recent works use symbolic execution to automatically derive properties about program behavior [11, 32, 48]. Several tools are able to analyze legacy programs without requiring any modification to their source code [9, 10, 19]."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                425,
+                911,
+                515
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The particular use of symbolic execution that we consider is automatic test-input generation. The goal here is to analyze a given program and automatically come up with input cases that would drive the program execution along a given path. By exploring all paths to find ones that end in “bad” program states (e.g., a crash or buffer overflow), these tools either obtain concrete test cases that expose program bugs or provide assurance that no such bad paths exist (at least within the explored space)."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                515,
+                913,
+                651
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Test-input generation works by first converting the relevant part of the program into a query for a constraint solver (such as Z3 [12] or STP [16]). This solver is then used to solve for the inputs that will drive program execution to the desired state (or undesired state, as the case may be). Rapid advances in heuristic solvers over the last decade have made it possible to use these tools in many interesting new applications. It turns out that these queries are also equivalent to static circuits [52] in the sense that they also define relationships between variables in a program. Thus, if we can create optimized circuits for programs we also speed up test-input generation, increasing the scale and depth of programs that can be explored."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                652,
+                913,
+                847
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Since the literature in symbolic execution typically does not refer to circuits, but instead talks solely in terms of constraints, we clarify the relationship between them with an example. Consider the code fragment:"
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                848,
+                913,
+                909
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": []
+            },
+            "bbox": [
+                493,
+                931,
+                504,
+                941
+            ]
+        }
+    ],
+    [
+        {
+            "type": "equation_interline",
+            "content": {
+                "math_content": "x := 5 + y; \\text { if } (x > a) \\text { then } x := x / a;",
+                "math_type": "latex",
+                "image_source": {
+                    "path": "images/d86902142f6fd5bc22133eaf28b7a99528631e21253b88649fbf15871782b618.jpg"
+                }
+            },
+            "bbox": [
+                179,
+                94,
+                392,
+                109
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The goal of the symbolic execution is to check if a division by zero can arise for any particular values of y and a. Normally, the code path to division would be translated into the following constraints: "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\mathtt { x } { = } 5 + \\mathtt { y } , \\mathtt { x } { > } \\mathtt { a } , \\mathtt { a } { = } 0 ."
+                    },
+                    {
+                        "type": "text",
+                        "content": "If all these constraints can be satisfied for some x, y, and a, we have a possible bug. Solving the constraint is done by feeding it into a SAT solver (as is often needed). The addition and greater-than operations need to be defined using primitive Boolean gates such as AND, OR, etc. much the same way hardware logic gates are used to form addition and comparison circuits. So, whenever we say that the “wires” for p and q are fed into an AND gate to produce the output wire r, what we really mean is that we are adding a new constraint of the form "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\mathsf { r } = \\mathsf { p } \\wedge \\mathsf { q }"
+                    },
+                    {
+                        "type": "text",
+                        "content": ". This in turn gets translated into "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "( pvee \\neg r ) \\wedge ( { \\mathfrak { q } } \\vee \\neg { \\mathfrak { r } } ) \\wedge ( \\neg p \\vee \\neg { \\mathfrak { q } } \\vee \\mathsf { r } )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "which is the input to the SAT solver. Thus, our optimized circuit constructions will be used to produce smaller constraint sets for encoding various programming constructs."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                114,
+                486,
+                387
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Since arrays can rapidly drive up costs, SMT solvers used in test-input generation tend to put a lot of effort into handling them properly. Some approaches rely on complicated under-approximation strategies that that use a simplified, but less accurate, circuit for quickly discarding obviously unreachable code paths. More accurate circuits are then generated only for the remaining paths. In our evaluation, we do not use any such approximations — instead we generate completely faithful circuits and show how they can be optimized in various cases. We hope that this will enable faster generation of test-inputs by allowing SMT solvers to use fewer, simpler approximation circuits, thereby completing analysis using fewer invocations of computationally expensive SAT solvers. We discuss this further in Section IV-B."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                387,
+                486,
+                611
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "An important characteristic of constraint solvers is that they support cyclic circuits. In the end, their input is just a set of logical constraints on a set of variables. Hence, it is perfectly acceptable to have constraints such as a = b ∨ c and c = a ∧ ¬d even though that may seem like circular definition — it is just a set of constraints on the values of the variables a, b, c and d. We will see later that this allows us to optimize random array access in the general case, something we could not do in the case of secure computation."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                613,
+                486,
+                750
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "III. BACKGROUND"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                215,
+                755,
+                354,
+                768
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "When programs are compiled into static circuits, conversion for most simple statements and conditionals is fairly intuitive. First, statements such as "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "{ \\pmb x } : = { \\pmb x } + { \\pmb 5 }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "are converted into single assignment form "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "{ \\bf x } _ { 2 } = { \\bf x } _ { 1 } + { \\bf 5 } ,"
+                    },
+                    {
+                        "type": "text",
+                        "content": ", so that each variable is assigned a value only once. This way, we can now allocate separate wires in the circuit to represent the values of x before (x1) and after (x2) the assignment."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                773,
+                486,
+                878
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Conditional branches are done by separately converting each branch into a circuit. At the end of the branch, any variable modified along either path is multiplexed at the end according to the branch condition. For example,"
+                    }
+                ]
+            },
+            "bbox": [
+                83,
+                878,
+                486,
+                907
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": []
+            },
+            "bbox": [
+                508,
+                93,
+                911,
+                123
+            ]
+        },
+        {
+            "type": "equation_interline",
+            "content": {
+                "math_content": "\\text { if } (a = 0) \\text { then } x := x + 5",
+                "math_type": "latex",
+                "image_source": {
+                    "path": "images/cdcc138666a3534393408669f004d95818ff2cbfb0086829abb3d427291216d3.jpg"
+                }
+            },
+            "bbox": [
+                540,
+                126,
+                700,
+                138
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "is converted to"
+                    }
+                ]
+            },
+            "bbox": [
+                509,
+                141,
+                614,
+                154
+            ]
+        },
+        {
+            "type": "equation_interline",
+            "content": {
+                "math_content": "x _ {2} := x _ {1} + 5, x _ {3} := \\operatorname{mux} (a = 0, x _ {1}, x _ {2})",
+                "math_type": "latex",
+                "image_source": {
+                    "path": "images/f03cc60d10710bbcdfbe942abb144f8d4d8bbfa73730609bb2b7e091a43df4c3.jpg"
+                }
+            },
+            "bbox": [
+                540,
+                159,
+                758,
+                172
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "where mux(p, a, b) uses its first argument as control bits to select between its second and third arguments."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                174,
+                911,
+                203
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Such multiplexers are actually never emitted by older symbolic execution tools, since they only explore a program one path at a time. However, this often led them to face the exponential path explosion problem. Modern tools, therefore, often explore paths at the same time using techniques such as path joining [24, 36] and compositional symbolic execution [1], which require such multiplexers (the literature also refers to them as if-then-else clauses)."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                204,
+                913,
+                325
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Loops and Functions. Loops and functions pose particular challenges for static circuits. Loops are completely unrolled for some number of iterations, and functions are entirely inlined (see Section VII for details). Since all values are static, and we cannot reuse the same loop body circuit for different iterations. Instead, we instantiate many copies of the same circuit. In test-input generation, there are a wide variety of heuristics for determining an unrolling threshold, which can be as simple as always unrolling just once. In such cases, checking tools simply do not explore paths that require multiple loop iterations, ignoring bugs that depend on such paths [3, 14]. Finding loop bounds is orthogonal to our work, and we do not address it here. In our evaluation, however, we use programs with known loop bounds, and those loops are completely unrolled when converted to circuits."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                330,
+                913,
+                571
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "In secure computation, the practice is a little different. The loop bounds are known based on the given input data size even before the computation begins. An upper bound to input data sizes is publicly revealed even though the data itself is private. For this, they describe circuits in custom languages [25, 39, 50] where inputs known at circuit generation time are treated differently from inputs to the circuit wires itself. Even if the computation is written in a traditional language such as C [26], constraints are placed on what kinds of variables can define loop bounds."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                571,
+                913,
+                724
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "IV. CIRCUIT STRUCTURES"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                614,
+                729,
+                807,
+                743
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "In this section we present circuit structures that provide efficient constructions for stacks, queues and associative maps. The stack and queue have quite similar structures, and are therefore discussed together. In each case, we discuss the operations we support, the circuit size required for each, and when these more efficient constructions can be used in place of general arrays."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                748,
+                913,
+                854
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "A. Stack and Queue"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                508,
+                859,
+                651,
+                875
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "We replace arrays with stacks and queues whenever we can determine that the array index only changes in small"
+                    }
+                ]
+            },
+            "bbox": [
+                508,
+                878,
+                911,
+                909
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "3"
+                    }
+                ]
+            },
+            "bbox": [
+                493,
+                931,
+                504,
+                941
+            ]
+        }
+    ],
+    [
+        {
+            "type": "equation_interline",
+            "content": {
+                "math_content": "\\begin{array}{l l} \\text {if (x != 0) \\{} & \\text {t = stk.top();} \\\\ a [ i ] + = 3; & \\text {t += 3;} \\\\ \\text {if (a[i] > 10) i++;} & \\text {stk.condModifyTop (x != 0, t);} \\\\ a [ i ] = 5; & \\text {stk.condPush (x != 0 && t > 10, NULL);} \\\\ \\} & \\text {stk.condModifyTop (x != 0, 5);} \\end{array}",
+                "math_type": "latex",
+                "image_source": {
+                    "path": "images/983b5b88b43f28d3777267c3367fa26e2efe23e9734124e0fde7a775d8ef2b6f.jpg"
+                }
+            },
+            "bbox": [
+                102,
+                87,
+                460,
+                148
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Figure 3. Using stacks instead of arrays when program changes i only in small increments. We assumed that the stack top has already moved to the position corresponding to a[i] using condPush during previous increments."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                159,
+                486,
+                196
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "increments or decrements. In other words, we use them to exploit locality whenever possible. Figure 3 shows an example of code transformations required for this. The operations needed to support the transformation are simply conditional variants of standard stack and queue operations. Each conditional operation takes an extra Boolean input that either enables or disables the corresponding modification to the stack. So, for example, stk.condPush (c,v) would push v onto the stack if c is true. Otherwise, the stack passes through unmodified."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                227,
+                486,
+                377
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Therefore, we now need to implement such operations efficiently. The operations we support for stack are condPush, condPop, condModifyTop, and readTop (no conditional read is needed since it has no side effects). The queue operations are identical, except that we use the word Front instead of Top. Figure 4 shows a naive implementation of the condPush operation, which still suffers from the expected Θ(n) cost per operation. We first describe the efficient circuits for stacks; then, we summarize the differences for queues."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                380,
+                486,
+                516
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "In terms of array access patterns, we can use these two structures to optimize any case where the index moves in small increments or decrements. For example, if it is only incremented (or only decremented) in a code fragment, we use the pattern in Figure 3. If it moves in both directions, we just need two stacks “head-to-head”, so that a pop from one is matched by a push into the other. If we need multiple array indices, we can use queues. For example, if i and j are both scanning through the same array, the space between them can be modeled as a queue, while the other segments of the array can still be stacks. This can be generalized to multiple index variables in the obvious way by using multiple queues for parts between any two consecutive index variables."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                518,
+                486,
+                714
+            ]
+        },
+        {
+            "type": "image",
+            "content": {
+                "image_source": {
+                    "path": "images/623e4cd19f2c6b801c6c35e411992c82a2b76d61cf68d4ef448ff277a548d3ec.jpg"
+                },
+                "content": "```mermaid\ngraph TD\n  A[\"3\"] --> B[\"2\"]\n  B --> C[\"7\"]\n  C --> D[\"5\"]\n  D --> E[\"...\"]\n  FTrue[\"F=true\"] --> G[\"V\"]\n  G --> H[\"V\"]\n  H --> I[\"V\"]\n  I --> J[\"V\"]\n  J --> K[\"...\"]\n  L[\"3\"] --> M[\"2\"]\n  M --> N[\"7\"]\n  N --> O[\"5\"]\n  O --> P[\"...\"]\n```",
+                "image_caption": [
+                    {
+                        "type": "text",
+                        "content": "Hierarchical Stack Implementation. The key idea is to"
+                    },
+                    {
+                        "type": "text",
+                        "content": "Figure 4. A na¨ıve circuit for condPush, using a series of multiplexers. Since the condition is true, a new element is pushed. Had it been false, the stack would passed through unmodified."
+                    }
+                ],
+                "image_footnote": []
+            },
+            "sub_type": "flowchart",
+            "bbox": [
+                166,
+                763,
+                397,
+                859
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "split up the stack buffer into several pieces and have empty spaces in each of those, so that we do not have to slide the entire buffer on each operation. This is illustrated in Figure 5. This idea was inspired by the “circular shifts” idea described in Pippenger and Fischer’s classic paper on oblivious Turing machines [47]. However, our construction, which we describe now, is significantly modified for our purposes since we do not want to incur the overhead of a general circuit simulating an entire Turing machine. Section VII explains the differences between Pippenger and Fischer’s construction and ours in more detail."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                93,
+                913,
+                258
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The buffers of the stack are now in chunks of increasing size, starting with size 5, and then 10, 20, 40 etc. In general, the buffer at level-i has "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "5 \\times 2 ^ { i }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "data slots, where the levels are numbered from the top starting at 0. The left side in the figure at level-0 represents the top of the stack. We also maintain the invariant that the number of data slots actually used in the buffer at level-i is always a multiple of 2i. So, for example, the level-1 buffer only accepts data in blocks of two data items. To keep track of the next empty block available, we also maintain a 3-bit counter at each level, t. At any given state, the counter can have values in the range 0–5, and if the one at level-i reads p, then it means that the next data block pushed in to this buffer should go to position p. Finally, we maintain a single-bit “present” flag associated with each data block to indicate whether or not it is currently empty. We do not explicitly show this bit in our figures, other than indicating it with the color of the data block (gray indicates occupied)."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                261,
+                911,
+                532
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Conditional Push Operations. For simplicity, let us start with a “nice” state, where we assume that the counter at each level starts no higher than 3. The top row in Figure 5 depicts such a state. This means every level currently has enough empty slots to accept at least two more blocks of data. So, for the first two condPush operations, we know we have an empty space at level-0 to store the new element as needed if the input condition is true. This circuit will simply be the na¨ıve array write operation. In addition, we conditionally increment the counter t, to reflect the change in position of the stack top. This circuit is a series of 5 multiplexers, each of which chooses between the new incoming data being pushed on the stack and the old data stored in the corresponding slot at level-0. The multiplexer control lines are the outputs of a decoder driven by the counter, so that only the appropriate data slot gets written to, while the other items pass through with their values unchanged. Finally, since we are implementing a conditional push, the input condition feeds into the enable bit of the decoder, and conditionally increments the counter at level 0. The wires for the deeper levels (not shown in the figure) are passed through unchanged to the output. This construction is shown in Figure 6."
+                    }
+                ]
+            },
+            "bbox": [
+                508,
+                542,
+                913,
+                573
+            ]
+        },
+        {
+            "type": "image",
+            "content": {
+                "image_source": {
+                    "path": "images/4de94ad28f2d7255cda32a8a3923937f6fd71e2de0b160cde3759ab058210bb7.jpg"
+                },
+                "content": "```mermaid\ngraph TD\n  A[\"level 0\"] --> B[\"t=3\"]\n  B --> C[\"level 0\"]\n  C --> D[\"t=4\"]\n  D --> E[\"level 0\"]\n  E --> F[\"t=5\"]\n  F --> G[\"level 0\"]\n    \n  H[\"level 1\"] --> I[\"t=2\"]\n  I --> J[\"level 1\"]\n  J --> K[\"t=2\"]\n  K --> L[\"level 1\"]\n  L --> M[\"t=2\"]\n  M --> N[\"level 1\"]\n    \n  O[\"level 2\"] --> P[\"t=2\"]\n  P --> Q[\"level 2\"]\n  Q --> R[\"t=2\"]\n  R --> S[\"level 2\"]\n    \n  T[\"Level 0\"] --> U[\"t=3\"]\n  U --> V[\"Level 0\"]\n  V --> W[\"t=3\"]\n    \n  X[\"Level 1\"] --> Y[\"t=2\"]\n  Y --> Z[\"Level 1\"]\n  Z --> AA[\"t=2\"]\n    \n  AB[\"Level 2\"] --> AC[\"t=2\"]\n  AC --> AD[\"Level 2\"]\n    \n  AE[\"Level 0\"] --> AF[\"t=3\"]\n  AF --> AG[\"Level 0\"]\n  AG --> AH[\"t=3\"]\n    \n  AI[\"Level 1\"] --> AJ[\"t=2\"]\n  AJ --> AK[\"Level 1\"]\n  AK --> AL[\"t=2\"]\n    \n  AM[\"Level 2\"] --> AN[\"t=2\"]\n  AN --> AO[\"Level 2\"]\n    \n  AP[\"Level 0\"] --> AQ[\"t=3\"]\n  AQ --> AR[\"Level 0\"]\n  AR --> AS[\"t=3\"]\n    \n  AT[\"Level 1\"] --> AU[\"t=2\"]\n  AU --> AV[\"Level 1\"]\n  AV --> AW[\"t=2\"]\n    \n  AX[\"Level 2\"] --> AY[\"t=3\"]\n  AY --> AZ[\"Level 2\"]\n```",
+                "image_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 5. The stack buffers separated into levels, with five blocks each. A level 0 shift circuit is generated after every two conditional push operations."
+                    }
+                ],
+                "image_footnote": []
+            },
+            "sub_type": "flowchart",
+            "bbox": [
+                513,
+                598,
+                903,
+                864
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "4"
+                    }
+                ]
+            },
+            "bbox": [
+                493,
+                931,
+                504,
+                941
+            ]
+        }
+    ],
+    [
+        {
+            "type": "image",
+            "content": {
+                "image_source": {
+                    "path": "images/b1fecf93f3fc5d2a0b26ac6f472e4e954ec13befa5e2d058b9847fc97712553d.jpg"
+                },
+                "content": "```mermaid\ngraph TD\n  A[\"push condition\"] --> B[\"3 x 5 Decoder\"]\n  B --> C[\"en\"]\n  C --> D[\"Incr\"]\n  D --> E[\"t\"]\n  F[\"value pushed in (multiple bits)\"] --> G[\"old data slot 4\"]\n  F --> H[\"old data slot 3\"]\n  F --> I[\"old data slot 2\"]\n  F --> J[\"old data slot 1\"]\n  F --> K[\"old data slot 0\"]\n  G --> L[\"new data slot contents\"]\n  H --> L\n  I --> L\n  J --> L\n  K --> L\n  L --> M[\"t\"]\n```",
+                "image_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 6. Circuit for a single conditional push operation into level-0 buffer."
+                    }
+                ],
+                "image_footnote": []
+            },
+            "sub_type": "flowchart",
+            "bbox": [
+                86,
+                88,
+                478,
+                212
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": []
+            },
+            "bbox": [
+                81,
+                266,
+                486,
+                583
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "After two conditional push operations it is possible that the level 0 buffer is now full, and we have to generate some extra circuitry for passing blocks into the next level. For this, we simply check the counter to see if it is greater than 3. The result of this comparison is used to conditionally rightshift the contents of the buffer by 2 slots, while the elements ejected from the right are pushed into level 1 by a conditional push circuit for the deeper level. At the same time, the counter on buffer 0 is decremented by 2 if necessary. Of course, if the counter is already less than or equal to 3 (e.g., if the previous two conditional push operations had false conditions and did not actually do anything), the stack state is not modified in any way and the circuit simply passes on the current values (Figure 7). After all this is done, we can now be sure that the level-0 buffer once again has at least two empty slots for the next two push operations to succeed. The circuit for conditional push into deeper levels is the same as the one for level 0, except that the circuit that shifts to level-i is only generated every 2i condPush operations."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                584,
+                486,
+                869
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Conditional Pop. The conditional pop circuit is designed analogously to the conditional push. Normally, it reads from the level-0 buffer and then decrements t. After every "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "2 ^ { i }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "conditional pop operations we add extra circuits to check if the counter at level i is less than 2, and if so, pop "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "2 ^ { i + 1 }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "items from the deeper level (that is, from level (i+1) to level i). Whenever we pop from level i, we decrement the counter at that level, and add 2 to the counter at level (i − 1) (unless "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "i - 1 < 0 )"
+                    },
+                    {
+                        "type": "text",
+                        "content": ". That way, the topmost item on the stack is always in the level-0 buffer. The read top and modify top operations, therefore, just need to use the level-0 counter to determine which of the five elements in the buffer is actually the top, and requires a constant-sized circuit, such as a multiplexer. In this case we do not even need to check all 5 data slots, since some are always kept empty by construction (they are used only in transient states just before a shift)."
+                    }
+                ]
+            },
+            "bbox": [
+                83,
+                878,
+                486,
+                909
+            ]
+        },
+        {
+            "type": "image",
+            "content": {
+                "image_source": {
+                    "path": "images/36a75542ae38e4f9fc8df848b26673461f937835443693facbd688c3315eb039.jpg"
+                },
+                "content": "```mermaid\ngraph TD\n  A[\"0\"] --> B[\"subtract\"]\n  B --> C[\"t\"]\n  C --> D[\">\"]\n  D --> E[\"Buffer i data blocks\"]\n  E --> F[\"right shift by 2\"]\n  F --> G[\"Buffer i data blocks (at least 2 blocks are empty)\"]\n  G --> H[\"level (i+1) conditional push\"]\n  H --> I[\">\"]\n  I --> J[\"Buffer i data blocks\"]\n  J --> K[\"Output\"]\n```",
+                "image_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 7. Emptying out data blocks from level i to "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "( i + 1 )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "."
+                    }
+                ],
+                "image_footnote": []
+            },
+            "sub_type": "flowchart",
+            "bbox": [
+                532,
+                87,
+                890,
+                262
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": []
+            },
+            "bbox": [
+                506,
+                324,
+                913,
+                536
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Since we want to support push and pop operations interleaved arbitrarily, we have to make sure that e.g., a shift from level 0 to level 1 after some conditional push still leaves enough elements at level 0 for any subsequent pops, so that they do not interfere with each other. We only shift two blocks at a time, and only do this when "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "t \\geq 4 ,"
+                    },
+                    {
+                        "type": "text",
+                        "content": "so that after a shift we still have at least two blocks left for any pops that may follow. Similar logic also holds for shift after pop, when we must leave enough empty spaces for push operations, while populating this level for pops. This also explains our choice of using 5 blocks on each level: in the worst case we need 2 empty spaces for push, 2 filled blocks for pop, and one extra space since the deeper levels only take an even number of blocks."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                537,
+                911,
+                748
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Analysis. From this point we will use the term cost of a circuit to mean the number of gates. This is the most important metric for our target applications, and the depth of the circuit is mostly unimportant."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                756,
+                913,
+                816
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "For every two push operations of the stack, a level-1 push circuit is generated only once. This will in turn cause a level-2 push circuit on every four operations of the stack, and so on. In general, for a finite-length stack known to have at most n elements at any given time, k operations access level i at most "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\lfloor k / 2 ^ { i } \\rfloor"
+                    },
+                    {
+                        "type": "text",
+                        "content": "times. However, the operations at the deeper levels are also more expensive since they move around larger data blocks — each circuit at level i has "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( 2 ^ { i } )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "logic gates per operation. So when k is large, we generate "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( 2 ^ { i } \\times k / 2 ^ { i } ) = \\Theta ( k )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "-sized circuits at level i. And since we have "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( \\log n )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "levels, the total circuit size for k operations is Θ(k log n). Thus, the amortized code for each conditional stack operation is Θ(log n). If no upper-bound to the stack length is known in advance (at circuit generation time), we can simply assume that after k conditional push operations, the length is at most k. Following similar reasoning, the amortized cost of a conditional pop is also Θ(log n). Operations condModifyTop and readTop only involve the level-0 buffer, and therefore have fixed costs."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                818,
+                913,
+                910
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": []
+            },
+            "bbox": [
+                493,
+                931,
+                503,
+                941
+            ]
+        }
+    ],
+    [
+        {
+            "type": "image",
+            "content": {
+                "image_source": {
+                    "path": "images/c89b99003ea8bebe7a48ce46b27a6ab44ef2b7609da8a2021e6d38ea25e0395f.jpg"
+                },
+                "content": "```mermaid\ngraph TD\n  A[\"level 0\"] --> B[\"h=4\"]\n  B --> C[\"h=6\"]\n  C --> D[\"h=5\"]\n  D --> E[\"...\"]\n  E --> F[\"level (log n)\"]\n  G[\"Popped values\"] --> H[\"t=2\"]\n  H --> I[\"t=3\"]\n  I --> J[\"t=2\"]\n  J --> K[\"...\"]\n  K --> L[\"pushed values\"]\n    style A fill:#f9f,stroke:#333\n    style G fill:#ccf,stroke:#333\n    style B fill:#cfc,stroke:#333\n    style C fill:#cfc,stroke:#333\n    style D fill:#cfc,stroke:#333\n    style E fill:#cfc,stroke:#333\n    style F fill:#cfc,stroke:#333\n    style K fill:#cfc,stroke:#333\n```",
+                "image_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 8. Hierarchical queue construction."
+                    }
+                ],
+                "image_footnote": []
+            },
+            "sub_type": "flowchart",
+            "bbox": [
+                94,
+                88,
+                467,
+                247
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": []
+            },
+            "bbox": [
+                81,
+                309,
+                486,
+                505
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Hierarchical Queue Implementation. The queue structure is essentially equivalent to a push-only stack and a poponly stack, juxtaposed together (Figure 8). Each uses "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "3 \\times 2 ^ { i }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "data slots at level i, exactly half the buffer we have that level. The head and tail buffers individually are smaller than in the case of stack "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "( 3 \\times 2 ^ { i }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "instead of "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "5 \\times 2 ^ { i } )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "since we know it is either push-only or pop-only. Every level now has two counters, one for head and the other for tail. Each is represented by three bits, with values in the range "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "0 \\mathrm { - } 6 ,"
+                    },
+                    {
+                        "type": "text",
+                        "content": "representing the head and tail position of the queue in the current buffer, respectively. If their values are h and t in the buffer for level i, it represents the fact that buffer slots "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "2 ^ { i } t , 2 ^ { i } t + 1 , \\ldots , 2 ^ { i } h - 1"
+                    },
+                    {
+                        "type": "text",
+                        "content": "are currently occupied. The invariant "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "t \\leq h"
+                    },
+                    {
+                        "type": "text",
+                        "content": "is always maintained. If "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "t = h ,"
+                    },
+                    {
+                        "type": "text",
+                        "content": ", it represents the condition where the corresponding buffer is empty. In such cases, we will always reset t and h to the value 3, so that they both point to the middle of the buffer. Here, we are using the convention that pop operations occur at the head, while push operations occur at the tail."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                513,
+                486,
+                801
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Conditional push and pop operations still work at level-0 as in the stack. After every "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\bar { 2 ^ { i } }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "push operations, we check level-i and shift two blocks to level-(i + 1) if "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "t < 2 ."
+                    },
+                    {
+                        "type": "text",
+                        "content": ". Similarly, after "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "2 ^ { i }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "pop operations, we resupply the head buffer with new elements from the next level if "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "h < 5"
+                    },
+                    {
+                        "type": "text",
+                        "content": ". So far, this is exactly the same scenario as in the stack. But we now need to add some extra circuitry to transfer elements between the two halves. In particular, when a level-i pop occurs, it is possible that level-(i + 1) is empty, or that it does not even exist (that is, we have no wires representing that buffer). So we need to add extra circuits to check for this case. When it occurs, the next few pop operations will supply data straight out of the level-i tail buffer (instead of popping from the empty buffer at the deeper level). Similarly, after a level-i push, if the tail buffer is getting full and the next level is empty, the circuit also checks to see if the head buffer in the current level is also empty. If so, it simply shifts data blocks from the tail buffer directly to the head buffer in the same level, skipping the next-level buffer. All these conditional data movements add extra multiplexers, but increase the circuit-size only by a constant factor. So, we can still provide conditional queue push and pop operations at Θ(log n) cost. As we will see later in our evaluation, the constant factors are still quite small, and the total cost of our queue construction is only slightly higher than that of our stack."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                803,
+                486,
+                907
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": []
+            },
+            "bbox": [
+                506,
+                93,
+                913,
+                364
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Finally, this design ensures that the queue head is always found at the level-0 buffer. So, the read/modify operations for the queue head can still be done at constant cost."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                364,
+                911,
+                411
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "B. Associative Map"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                509,
+                421,
+                648,
+                435
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The circuits for associative maps are quite different since in this case we cannot rely on any locality of access. Instead, here we amortize the cost whenever we have multiple (read or write) operations that can be performed in a “batch”. The only constraint here is that none of the keys or values used in batched operations may depend on the result of another operation in the same batch since this would lead to a cyclic circuit. Many applications do have batchable sequences of array accesses, such as those that involve counting or permuting of array elements (see Section VI for examples). We start with the construction for performing batch writes on an associative map, and then show how it can be tweaked to perform other operations. Here, we define an associative map in a circuit as simply a collection of wires representing a set of key-value pairs where the keys all have unique values. We support batched update and batched lookup operations; inserting new values can be done simply by performing updates on non-existent keys."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                440,
+                913,
+                712
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The circuit for performing a batch of update operations is shown in Figure 9. The circuit takes in two sets of inputs: the old key-value pairs and a sequence of write operations. The write operations in the sequence are themselves also represented as key-value pairs: the key to update and the new value to be written. However, the sequence can have duplicate keys, and the order of writes among those with the same key matters. The output of the circuit is simply the new key-value pairs for the map. The idea is inspired by the set-intersection circuit used by Huang et al. [27]. We first perform a stable sort on all the key-value pairs, which is then passed through a linear scan that marks for removal all but the latest value for each key. Finally, another sort operation is performed, but this time with a different comparison function — this allows us to collect together only the values not marked for removal."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                712,
+                913,
+                907
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "6"
+                    }
+                ]
+            },
+            "bbox": [
+                493,
+                931,
+                504,
+                941
+            ]
+        }
+    ],
+    [
+        {
+            "type": "image",
+            "content": {
+                "image_source": {
+                    "path": "images/529e4ff1c1060241f20f02efa0d8d09172dee63c86f10631c3aec08b383e4ef3.jpg"
+                },
+                "content": "```mermaid\ngraph TD\n  A[\"old key-value pairs\"] --> B[\"0 A 2 R 9 M 12 C\"]\n  C[\"update command pairs\"] --> D[\"9 X 0 B 9 S 12 D\"]\n  B --> E[\"Sort by keys\"]\n  D --> E\n  E --> F[\"0 A 0 B 2 R 9 M 9 X 9 S 12 C 12 D\"]\n  F --> G[\"Compare adjacent keys, keep latest value\"]\n  G --> H[\"0 A 0 B 2 R 9 M 9 X 9 S 12 C 12 D\"]\n  H --> I[\"Sort by &quot;liveness&quot;, then by keys\"]\n  I --> J[\"0 B 2 R 9 S 12 D 0 A 9 M 9 X 12 C\"]\n  J --> K[\"new key-value pairs\"]\n  L[\"discarded wires\"] --> I\n```",
+                "image_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 9. Circuit for batch-updating an associative key-value map."
+                    }
+                ],
+                "image_footnote": []
+            },
+            "sub_type": "flowchart",
+            "bbox": [
+                96,
+                88,
+                478,
+                396
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": []
+            },
+            "bbox": [
+                81,
+                459,
+                486,
+                503
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The cost of this cicuit is just the cost of two sorting operations plus a simple linear scan in the middle. Empirically, we found that it works best when the batch size is between approximately n and 2.5n, where n is the number of keyvalue pairs in the map. If the batch size gets larger, we can split it up into smaller batches. If the batch is too small, we can still use this method, but the amortized cost may be higher in that case."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                505,
+                486,
+                626
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The sort operations each require Θ(n log n) comparisons, and the linear scan requires "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( n )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "operations. So, the circuit size should be simply "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( n \\log n ) ^ { 1 }"
+                    },
+                    {
+                        "type": "text",
+                        "content": ", providing n operations each with an amortized cost of Θ(log n). However, there is a problem. We need an oblivious sorting algorithm, where compare and swaps are hardcoded in the circuit. But, the known efficient oblivious sorting algorithms [4, 22] are not stable — they do not preserve the order of elements in input that compare equal. So to make the sorting stable, we need to pad each element with extra wires feeding them with their sequence number in the input ordering, so that even equal elements no longer compare equal during the sort. The downside of this is that we added a Θ(log n) cost to our comparison functions, increasing our amortized cost to "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( \\log ^ { 2 } n )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "per write operation. Obviously, this is not necessary if, in our application, we know all the keys in the write are unique. In that case the entire operation is reduced to the simple union operation for associative maps commonly found in many programming languages."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                627,
+                486,
+                869
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": []
+            },
+            "bbox": [
+                506,
+                93,
+                911,
+                138
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "It is now easy to see how this technique can be used to perform other operations. For example, if we wanted to add to old values instead of overwriting them (e.g., if the values are integers), we just need to replace the linear scan in the middle. Even better, since addition is commutative and associative, we do not need a stable sort, allowing us to construct the complete circuit with just Θ(n log n) gates."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                138,
+                911,
+                244
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "If we want to perform read operations, the input will be the map key-value pairs and keys to be read. Assuming we have k keys to be read, they are all padded with sequential serial numbers "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "0 , 1 , . . . , k - 1"
+                    },
+                    {
+                        "type": "text",
+                        "content": ", which will be used later in the final sorting operation to order the output wires. But for now, they are all sorted by just the keys as before. The next step will now be filling in values for the requested keys, with a very similar linear scan. Finally, a sorting step reorders the values and presents them in the order in which they were requested (by comparing the extra serial numbers initially padded in), so that we know which output wire corresponds to which requested key. All this requires "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( n \\log ^ { 2 } n )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "logic gates."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                244,
+                913,
+                441
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "In the case of automatic test-input generation, one special observation is that cyclic circuits are allowed in its constraint sets (Section II-B). So we can actually have circuits where some of the input keys or values depend on some of the output wires of the circuit. This allows us to represent arbitrary random array access such as where one write depends on a previous read. In fact, it is quite easy to make small tweaks in the structure described to make a single, unified (but more expensive) circuit that accepts an arbitrary mix of read and write commands to be applied in sequence. Since each circuit can do n operations using just "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( n \\log ^ { 2 } n )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "gates, the amortized cost for each array access now becomes just "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( \\log ^ { 2 } n )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                441,
+                913,
+                638
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "V. IMPLEMENTATION"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                633,
+                650,
+                790,
+                664
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Figure 10 depicts the system we use to implement and evaluate our circuit structures. We start with a program, which is then manually converted into the corresponding circuit generator. For this step, we use a custom circuit component library written in Haskell that includes all our data structures (Figure 11). This circuit generator is then executed to produce either a description of a secure computation protocol or a SAT query for test-input generation. For secure computation, we generate circuits in the intermediate representation designed by Melicher et al. [40]. For testinput generation, we generate standard DIMACS queries that is accepted by nearly all SAT solvers. We used a fast and popular off-the-shelf solver called Lingeling [5]. The following paragraphs describe various details of the implementation that efficiently realize the designs presented in the previous section. Our implementation and code for all the data structures presented here is available for download from http://mightbeevil.org/netlist/."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                671,
+                913,
+                733
+            ]
+        },
+        {
+            "type": "image",
+            "content": {
+                "image_source": {
+                    "path": "images/c7bec4de29127df99b0ced0b127e2e5eb895a09cab3e7ab532b251d9f7f8adfb.jpg"
+                },
+                "content": "```mermaid\ngraph TD\n  A[\"Source Program\"] --> B[\"Rewritten Program\"]\n  C[\"Custom Circuit Structure Library\"] --> B\n  B --> D[\"Execute\"]\n  D --> E[\"Garbilled Circuits\"]\n  D --> F[\"SAT Solver\"]\n```",
+                "image_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 10. System for testing circuit efficiency."
+                    }
+                ],
+                "image_footnote": []
+            },
+            "sub_type": "flowchart",
+            "bbox": [
+                511,
+                756,
+                908,
+                883
+            ]
+        },
+        {
+            "type": "page_footnote",
+            "content": {
+                "page_footnote_content": [
+                    {
+                        "type": "text",
+                        "content": "1As we note in Section V, more popular "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( n \\log ^ { 2 } n )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "algorithms actually perform faster for the small data sizes used in our evaluation"
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                883,
+                485,
+                907
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "7"
+                    }
+                ]
+            },
+            "bbox": [
+                493,
+                930,
+                504,
+                941
+            ]
+        }
+    ],
+    [
+        {
+            "type": "algorithm",
+            "content": {
+                "algorithm_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 11. Steps needed to convert code to circuit. First we simply replace arrays with appropriate data structures whenever possible (Section IV). Then everything is systematically replaced with library calls for generating corresponding circuits e.g. ‘+’ becomes ‘add’. Our custom library automatically handles everything internal to the data structure (e.g., condPush automatically decides if it also needs to perform an internal shift etc.). Both these steps are currently done manually (and often combined into a single step)."
+                    }
+                ],
+                "algorithm_content": [
+                    {
+                        "type": "text",
+                        "content": "if (x != 0) {\n    a[i] += 3;\n    if (a[i] > 10) i++;    t = stk.top();\n    a[i] = 5;\n}\n\n    t ← top stk\n    t ← add t (constInt 3)\n    xnz ← netNot =<< equal x (constInt 0)\n    stk ← condModTop xnz t stk\n    c2 ← netAnd xnz =<< greaterThan t (constInt 10)\n    stk ← condPush c2 (constInt 0) stk\n    stk ← condModTop xnz (constInt 5) stk\n    ...\n}"
+                    }
+                ]
+            },
+            "bbox": [
+                83,
+                87,
+                478,
+                300
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": []
+            },
+            "bbox": [
+                81,
+                431,
+                486,
+                643
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Multiplexing in Stacks and Queues. Since most of the data movement in the stack and queue circuits is done by generating multiplexers, they are the most expensive parts of our circuit. Hence, we focused on reducing the number of multiplexers needed."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                651,
+                486,
+                727
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Consider the conditional shift operations used to move data blocks between consecutive buffer levels. Figure 12 (a) shows what happens when a shift occurs after a pop. Observe that the leftmost two data blocks do not change regardless of whether shifting actually occurred or not. Thus, the input wires can just pass through for these blocks without needing any muxers. We take advantage of similar opportunities for the right shift needed after push operations (Figure 12 (b)), when the output is always a blank block."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                727,
+                486,
+                863
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "This provides substantial benefits by itself, but also enables further reductions that take advantage of knowing blocks are blank at circuit generation time. Figure 13 shows how we can reduce a wide multiplexer into a simple 1-bit AND gate if we know that one of the input data blocks is empty. In secure computation, we have to be careful not to do this if the wires immediately lead to the final output, since this may reveal extra information. Inside our stack and queue constructions, though, this is not a problem. Together, these techniques produce about 28% improvement for the stack circuits, while a more modest 12% for the queue."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                863,
+                486,
+                909
+            ]
+        },
+        {
+            "type": "image",
+            "content": {
+                "image_source": {
+                    "path": "images/d1a68cd58588f27770220de4d5e4d0a8819eed662f482244de191b890a4d57df.jpg"
+                },
+                "content": "```mermaid\ngraph TD\n  A[\"does not change\"] --> B[\"Left shift\"]\n  B --> C[\"Q R\"]\n  D[\"t<2, shift occurs\"] --> E[\"Left shift, disabled\"]\n  F[\"t≥2, no shifting\"] --> G[\"Left shift, disabled\"]\n  H[\"t>3, shift occurs\"] --> I[\"Right shift\"]\n  J[\"t≤3, no shifting\"] --> K[\"Right shift, disabled\"]\n    style A fill:#f9f,stroke:#333\n    style D fill:#ccf,stroke:#333\n    style F fill:#ccf,stroke:#333\n    style H fill:#ccf,stroke:#333\n    style J fill:#ccf,stroke:#333\n    style B fill:#cfc,stroke:#333\n    style E fill:#cfc,stroke:#333\n    style I fill:#cfc,stroke:#333\n    style K fill:#cfc,stroke:#333\n```",
+                "image_caption": [],
+                "image_footnote": []
+            },
+            "sub_type": "flowchart",
+            "bbox": [
+                540,
+                87,
+                883,
+                388
+            ]
+        },
+        {
+            "type": "image",
+            "content": {
+                "image_source": {
+                    "path": "images/8652ef45b08b9cc851ea777ec6690ed81e793cc131893304c8c2f7ff119bc8c6.jpg"
+                },
+                "content": "0\n0{\np\nx{\nc\nc\np\nx{",
+                "image_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 12. Removing muxes for shifting by determining outputs when generating circuits."
+                    },
+                    {
+                        "type": "text",
+                        "content": "Figure 13. Reducing multiplexers to a single AND gate if one input is known to be blank. If the “present” flag associated with a data block is 0, then the value in the data wires is never used. So, if the blank option is selected by the control bit c, we zero out just the present flag. Note that simple constant propagation would have produced an AND gate for every output wire."
+                    }
+                ],
+                "image_footnote": []
+            },
+            "sub_type": "text_image",
+            "bbox": [
+                583,
+                441,
+                841,
+                556
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": []
+            },
+            "bbox": [
+                506,
+                672,
+                913,
+                796
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Sorting for Associative Maps. Our associative maps require keeping the elements in key-sorted order using a dataoblivious sorting algorithm — one where the order of comparison and exchange operations does not depend on the actual values being sorted, since the circuits must be static. Standard sorting algorithms (e.g., Quicksort) are not data-oblivious since the comparisons they do depend on the data. Goodrich’s data-oblivious randomized Shellsort algorithm [22] requires Θ(n log n) compare and exchange operations. However, the classical algorithm of Batcher’s odd-even mergesort [4] produces smaller circuits when we have fewer than about 300,000 elements2 in the array, even though the latter algorithm has "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( n \\log ^ { 2 } n )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "complexity. All the array sizes we use in our evaluation are small enough for Batcher’s algorithm, which is the one we use."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                801,
+                913,
+                909
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "8"
+                    }
+                ]
+            },
+            "bbox": [
+                493,
+                931,
+                503,
+                941
+            ]
+        }
+    ],
+    [
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": []
+            },
+            "bbox": [
+                81,
+                93,
+                486,
+                213
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "We also take advantage of knowledge about which parts of the input are already known to be sorted. For example, if the associative map is being used as an array, the old data elements (top-left of Figure 9) are already sorted by their index. So, we only sort the command part, and then merge the two sorted parts in a single merge operation. This reduces the overall cost of the batch operation by another 20%. Furthermore, during array operations the keys associated with the old values are just sequential integers that are known at compile time, so basic constant propagation provides another small speedup."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                214,
+                486,
+                380
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "VI. EVALUATION"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                220,
+                388,
+                349,
+                402
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Our evaluation is divided into three parts: first, we compare the size of the our three circuit structures with the ones used in practice for various data lengths; next, we use them in garbled circuits and measure the protocol execution time; finally, we show improvements in test-input generation by automatically producing an input that exposes a buffer overflow bug in an example function. For both secure computation and test-input generation, we were able to obtain at least an order of magnitude speedup for large cases. All the timing measurements were made on a desktop machine running Ubuntu 12.04 on an Intel i7 2600S CPU at 2.8 GHz with 8 GB of memory."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                409,
+                486,
+                589
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "A. Circuit Size Comparison"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                83,
+                599,
+                274,
+                614
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The graphs in Figure 14 show how the size of our stack and queue circuits scale with increasing data sizes. We report the total number of binary logic gates used.3 The baseline structures that we compare against are implemented using conventional circuits whose cost scales as Θ(n) for each operation. We made simple optimizations to the baseline implementation to provide a fair comparison. For example, for the first few operations of a stack, we know that the top of a stack can lie within a small range of indices, and therefore require smaller multiplexers. The stack and queue circuits"
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                618,
+                486,
+                768
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "2The threshold apparently rises to 1.2 million elements when performing secure computation in the fully malicious model, since using randomized Shellsort then requires an extra shuffle network. Thanks to abhi shelat for pointing this out."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                780,
+                485,
+                827
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "3The literature in secure computation often excludes XOR gates in circuit sizes since many protocols, including garbled circuits [34], can be implemented in ways that enable XOR to be computed without any cryptographic operations or communication. While we do not show separate graphs plotting only non-XOR binary gates, we note that they show very similar trends — the y-axes simply gets scaled across the board by a factor of approximately one-third."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                827,
+                485,
+                907
+            ]
+        },
+        {
+            "type": "chart",
+            "content": {
+                "image_source": {
+                    "path": "images/2045e717c11dcbb59d5de215ce4e933cfe38cd85de7fd7bea0af972320bcfacc.jpg"
+                },
+                "content": "| Capacity of data structure | Baseline Stack | Baseline Queue | Our Stack | Our Queue |\n| -------------------------- | -------------- | -------------- | --------- | --------- |\n| 16                         | 1000           | 1000           | 1000      | 1000      |\n| 32                         | 1500           | 1500           | 1500      | 1500      |\n| 64                         | 2500           | 2500           | 2500      | 2500      |\n| 128                        | 4500           | 4500           | 2500      | 2500      |\n| 256                        | 8500           | 8500           | 2500      | 2500      |\n| 512                        | 19000          | 19000          | 3000      | 3000      |",
+                "chart_caption": [],
+                "chart_footnote": []
+            },
+            "sub_type": "bar chart",
+            "bbox": [
+                519,
+                87,
+                898,
+                304
+            ]
+        },
+        {
+            "type": "chart",
+            "content": {
+                "image_source": {
+                    "path": "images/ac18645055bb98c686669f224d0c05525f4fe89b5cd5a53370d5635823651270.jpg"
+                },
+                "content": "| Size of map in key-value pairs | Baseline | Batched |\n| ------------------------------ | -------- | ------- |\n| 0                              | 2000     | 3000    |\n| 100                            | 6000     | 7000    |\n| 200                            | 10000    | 9000    |\n| 300                            | 14000    | 11000   |\n| 400                            | 18000    | 12000   |\n| 500                            | 22000    | 13000   |\n| 600                            | 26000    | 14000   |\n| 700                            | 32000    | 15000   |\n| 800                            | 38000    | 15500   |\n| 900                            | 44000    | 16000   |\n| 1000                           | 48000    | 16500   |",
+                "chart_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 14. The x-axis shows the maximum capacity of each data structure in number of 16-bit elements. The y-axis is the number of gates."
+                    },
+                    {
+                        "type": "text",
+                        "content": "Figure 15. Per-element cost of performing n read operations on an array of n elements. Baseline uses a simple multiplexer, while the “batched” circuit uses an associative map. All maps are integer-to-integer maps, values being 16-bit integers and keys (log2 n)-bit integers."
+                    }
+                ],
+                "chart_footnote": []
+            },
+            "sub_type": "line chart",
+            "bbox": [
+                521,
+                358,
+                903,
+                542
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "were generated using random push and pop operations. As expected, the stack and the queue structures have very similar characteristics, and we reduced circuit size by over 11 times for 512 elements. Thus, when converting programs to circuits, these structures can easily replace arrays even for small sizes whenever the access pattern permits."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                635,
+                911,
+                726
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Figure 15 shows the benefits of our associative map construction. The baseline in the figure shows the cost of a normal read access by using a multiplexer. We compare that against the size of a batch read circuit on an integerto-integer associative map. Our structures are worse than the baseline implementation for small sizes, but become beneficial for modest sizes. For 1000-element arrays, our associative map design reduces the circuit size by 3.2x. We performed similar experiments for write operations and integer add operations. The trends are quite similar, although batched integer add has much smaller circuits since stable sorting is not required (Section IV-B)."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                727,
+                913,
+                909
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "9"
+                    }
+                ]
+            },
+            "bbox": [
+                493,
+                931,
+                504,
+                941
+            ]
+        }
+    ],
+    [
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Input: "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "A [ i ]"
+                    },
+                    {
+                        "type": "text",
+                        "content": "1st share of i-th data item"
+                    }
+                ]
+            },
+            "bbox": [
+                83,
+                88,
+                344,
+                103
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Input: "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "B [ i ]"
+                    },
+                    {
+                        "type": "text",
+                        "content": "2nd share of i-th data item"
+                    }
+                ]
+            },
+            "bbox": [
+                84,
+                103,
+                349,
+                118
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Output: "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "H [ d ] ."
+                    },
+                    {
+                        "type": "text",
+                        "content": ", frequency of "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "d"
+                    },
+                    {
+                        "type": "text",
+                        "content": "in data set"
+                    }
+                ]
+            },
+            "bbox": [
+                84,
+                118,
+                367,
+                133
+            ]
+        },
+        {
+            "type": "list",
+            "content": {
+                "list_type": "text_list",
+                "list_items": [
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "1: "
+                            },
+                            {
+                                "type": "equation_inline",
+                                "content": "H \\gets \\emptyset"
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "2: for "
+                            },
+                            {
+                                "type": "equation_inline",
+                                "content": "i  1 , n"
+                            },
+                            {
+                                "type": "text",
+                                "content": "do"
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "3: "
+                            },
+                            {
+                                "type": "equation_inline",
+                                "content": "H [ A [ i ] + B [ i ] ]  1 + H [ A [ i ] + B [ i ] ]"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "bbox": [
+                94,
+                133,
+                359,
+                180
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Figure 16. A simple aggregation of data from secret shares for computing histograms. Output is a simple frequency distribution of the componentwise sums. All elements are 16-bit integers, with sums being modulo- "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "- 2 ^ { 1 6 }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                193,
+                486,
+                229
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "B. Secure Computation Using Garbled Circuits"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                83,
+                256,
+                406,
+                271
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Here we demonstrate how much speedup our circuit structures can provide in a garbled circuits protocol execution. For this, we use two simple example programs that we executed in garbled circuits: a simple statistical aggregation program, and a data clustering algorithm."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                275,
+                486,
+                349
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "1) Histogram of Sums: Consider a scenario where companies want to aggregate financial data and generate a report that provides a broad picture of the economy that all the companies can use to make better decisions. However, such data is obviously considered sensitive, and nobody wants to reveal their data to a consortium member who might be from a rival company. This is an example where secure multiparty computation was actually used in practice, as described by Bogdanov et al. [6]. Instead of directly sending their data, they send out cryptographic shares of the data to multiple servers which are then aggregated securely to form a report."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                351,
+                486,
+                517
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "We consider one simple example of such an analysis: histogram generation. Suppose the numbers in the actual data have each been divided into two additive shares A and "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "B ,"
+                    },
+                    {
+                        "type": "text",
+                        "content": "such that the "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "i ^ { \\mathrm { { t h } } }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "data element is simply the sum "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "A [ i ] + B [ i ]"
+                    },
+                    {
+                        "type": "text",
+                        "content": ". All we want to do now is compute the frequency of each data element inside a secure computation protocol so that no party learns the actual unaggregated data. The code is shown in Figure 16."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                517,
+                486,
+                636
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "To execute this algorithm as a garbled circuits protocol, the code first needs to be converted into a circuit. In our case, both the arrays are of equal length n. Once the loop is unrolled n times to be converted into a circuit, it is easy to see that i values will all become constants that do not depend on input data. So the only array access that will be slow is the one on line 3 — the sums are not known ahead of time and depend on input values. Since we are performing addition on the elements of "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "H ,"
+                    },
+                    {
+                        "type": "text",
+                        "content": "we can take advantage of our batch element addition circuit here. The speedup we achieve just by making this one single change is shown in Figure 17. For the largest test cases we tried (with n = 512), we reduced runtime from 1 minute 18 seconds to just under 7 seconds — a 6.7x speedup."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                637,
+                486,
+                847
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "2) DBSCAN Clustering: Clustering algorithms are often used to uncover new patterns in a given database. For instance, insurance companies could perform clustering to find out how many demographic categories they have in their customer base in order to offer insurance plans accordingly. While it is common for a single company to perform such analyses on their own database, companies might sometimes want a more complete picture by collaborating and running a clustering analysis on their combined databases. Directly sharing such data, however, may not be desirable with rivals, or even possible because of their customer agreements. Thus, it would be desirable to perform this over a secure computation protocol. Here we will show how our stack structure can help construct efficient circuits for a popular such clustering algorithm, DBSCAN [13]."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                848,
+                486,
+                909
+            ]
+        },
+        {
+            "type": "chart",
+            "content": {
+                "image_source": {
+                    "path": "images/b92855869f41a33fa3c795d9073cba4c806e4ef5da5e3e23124015f082a565bc.jpg"
+                },
+                "content": "| Size of Array | Batched Addition | Incremental Addition |\n| ------------- | ---------------- | --------------------- |\n| 16            | 3                | 3                     |\n| 32            | 4                | 4                     |\n| 64            | 5                | 5                     |\n| 128           | 7                | 7                     |\n| 256           | 9                | 20                    |\n| 512           | 15               | 95                    |",
+                "chart_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 17. Execution time for the histogram-of-sums protocol for financial data aggregation. All inputs are 16-bit numbers."
+                    }
+                ],
+                "chart_footnote": []
+            },
+            "sub_type": "line chart",
+            "bbox": [
+                524,
+                88,
+                906,
+                256
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": []
+            },
+            "bbox": [
+                506,
+                330,
+                911,
+                496
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The input is simply an array of multi-dimensional data points. Some of its elements come from one party, while the rest from the other. The output is the number of clusters found, and optionally, the cluster assignment of each data point (where cluste "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\cdot [ i ] = j"
+                    },
+                    {
+                        "type": "text",
+                        "content": "iff the "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "i ^ { \\mathrm { { t h } } }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "data point was assigned to cluster "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "j )"
+                    },
+                    {
+                        "type": "text",
+                        "content": ". This assignment could then either be directly revealed to the respective parties, or be used in further computation (e.g. to calculate the size, centroid, or variance of each cluster)."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                498,
+                913,
+                633
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The DBSCAN algorithm, shown in Figure 18, is a densitybased clustering algorithm that runs a recursive search through the input data set for regions of densely clustered points. If any input point "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "p"
+                    },
+                    {
+                        "type": "text",
+                        "content": "in the input has at least minpts points within a distance of radius, all these points are assigned to the same cluster. The code shown here proceeds in a depth-first search, and has execution time in "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( n ^ { 2 } )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "). Efficiently converting it into a circuit, however, poses a number of challenges, which we discuss next."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                635,
+                913,
+                771
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The first problem we face concerns loop unrolling. Lexically, we see that the code has loops nested up to three levels deep (labelled in the figure as (A), (B) and (C)). Therefore, if we na¨ıvely unroll it, the circuit automatically becomes "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( n ^ { 3 } )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "-sized, even though we know only "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( n ^ { 2 } )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "iterations will actually be executed. We know this because loop (B) will be skipped if loop (A) is currently at a point that has already been assigned a cluster (this check occurs at line 6). So, we know that the body of loop (B) is executed"
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                772,
+                913,
+                909
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "10"
+                    }
+                ]
+            },
+            "bbox": [
+                490,
+                931,
+                508,
+                943
+            ]
+        }
+    ],
+    [
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Input: P: an array of data points"
+                    }
+                ]
+            },
+            "bbox": [
+                86,
+                99,
+                313,
+                116
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Input: minpts, radius"
+                    }
+                ]
+            },
+            "bbox": [
+                86,
+                117,
+                232,
+                130
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Output: cluster: cluster assignment for each point"
+                    }
+                ]
+            },
+            "bbox": [
+                86,
+                131,
+                429,
+                146
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Output: c: number of clusters"
+                    }
+                ]
+            },
+            "bbox": [
+                86,
+                147,
+                294,
+                160
+            ]
+        },
+        {
+            "type": "algorithm",
+            "content": {
+                "algorithm_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 18. DBSCAN implementation."
+                    }
+                ],
+                "algorithm_content": [
+                    {
+                        "type": "text",
+                        "content": "1:   "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "n \\leftarrow |P|"
+                    },
+                    {
+                        "type": "text",
+                        "content": " \n2:   "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "c \\leftarrow 0"
+                    },
+                    {
+                        "type": "text",
+                        "content": " \n3:   "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "s \\leftarrow emptyStack"
+                    },
+                    {
+                        "type": "text",
+                        "content": " \n4: cluster   "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\leftarrow [0,0,\\ldots]"
+                    },
+                    {
+                        "type": "text",
+                        "content": " \n5: for   "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "i \\leftarrow [1,n]"
+                    },
+                    {
+                        "type": "text",
+                        "content": "  do ▷ (A)\n6: if cluster[i] ≠ 0 then\n7: continue\n8:   "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "V \\leftarrow \\text{getNeighbors}(i, P, \\text{minpts}, \\text{radius})"
+                    },
+                    {
+                        "type": "text",
+                        "content": " \n9: if count(V) < minpts then\n10: continue\n11:   "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "c \\leftarrow c + 1"
+                    },
+                    {
+                        "type": "text",
+                        "content": "  ▷ Start a new cluster\n12: for   "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "j \\leftarrow [1,n]"
+                    },
+                    {
+                        "type": "text",
+                        "content": "  do\n13: if   "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "V[j] = \\text{true} \\land \\text{cluster}[j] \\neq 0"
+                    },
+                    {
+                        "type": "text",
+                        "content": "  then\n14: cluster[j] ← c\n15: s.push(j)\n16: while   "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "s \\neq \\emptyset"
+                    },
+                    {
+                        "type": "text",
+                        "content": "  do ▷ (B)\n17: k ← s.pop()\n18: V ← getNeighbors(k, P, minpts, radius)\n19: if count(V) < minpts then\n20: continue\n21: for   "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "j \\leftarrow [1,n]"
+                    },
+                    {
+                        "type": "text",
+                        "content": "  do ▷ (C)\n22: if   "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "V[j] = \\text{true} \\land \\text{cluster}[j] \\neq 0"
+                    },
+                    {
+                        "type": "text",
+                        "content": "  then\n23: cluster[j] ← c\n24: s.push(j)"
+                    }
+                ]
+            },
+            "bbox": [
+                94,
+                162,
+                486,
+                529
+            ]
+        },
+        {
+            "type": "algorithm",
+            "content": {
+                "algorithm_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 19. Flattening two nested loops into one. This produces smaller unrolled circuits if a strong bound can be obtained for the total number of iterations of the inner loop."
+                    }
+                ],
+                "algorithm_content": [
+                    {
+                        "type": "text",
+                        "content": "while  "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "c_{1}"
+                    },
+                    {
+                        "type": "text",
+                        "content": " do  \n{loopBody1}  \nwhile  "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "c_{2}"
+                    },
+                    {
+                        "type": "text",
+                        "content": " do  \n{loopBody2}  \n "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Downarrow"
+                    },
+                    {
+                        "type": "text",
+                        "content": "  \nselector  "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\leftarrow"
+                    },
+                    {
+                        "type": "text",
+                        "content": " outerLoop  \nwhile selector  "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\neq"
+                    },
+                    {
+                        "type": "text",
+                        "content": " outerLoop  "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\vee c_{1}"
+                    },
+                    {
+                        "type": "text",
+                        "content": " do  \nif selector = outerLoop then  \n{loopBody1}  \nif  "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "c_{2}"
+                    },
+                    {
+                        "type": "text",
+                        "content": " then  \n    selector  "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\leftarrow"
+                    },
+                    {
+                        "type": "text",
+                        "content": " innerLoop  \n{loopBody2}  \nelse  \n    selector  "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\leftarrow"
+                    },
+                    {
+                        "type": "text",
+                        "content": " outerLoop"
+                    }
+                ]
+            },
+            "bbox": [
+                101,
+                589,
+                338,
+                839
+            ]
+        },
+        {
+            "type": "chart",
+            "content": {
+                "image_source": {
+                    "path": "images/a9c089c63a0dbad09c4a7bf08e3af8ace12959d90b4ddb3ee09cad1473150156.jpg"
+                },
+                "content": "| Data size | Our approach (minutes) | Baseline (minutes) |\n| :--- | :--- | :--- |\n| 60 | 5 | 5 |\n| 120 | 10 | 15 |\n| 240 | 15 | 70 |\n| 480 | 60 | 580 |",
+                "chart_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 20. Execution time for DBSCAN clustering protocol over garbled circuits. Data size is in number of data points, where each data point is simply an "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "( x , y )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "pair of two 16-bit integers, and the distance metric used is Manhattan distance."
+                    }
+                ],
+                "chart_footnote": []
+            },
+            "sub_type": "bar chart",
+            "bbox": [
+                531,
+                88,
+                890,
+                281
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "at most only n times total, even though it is nested inside another loop. To avoid generating "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "n ^ { 2 }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "copies of this loop in the unrolled circuit, we simply flatten the loops (A) and (B) as shown in Figure 19. This allows us to unroll the flattened version just 2n times. The other loops (e.g., loop (C) or the one at line 12) were not flattened, since we do not have such strong lower bounds on how often they are skipped. Generally, such flattening tends to help only if the number of iterations taken by the inner loop can be substantially different for each iteration of the outer loop, depending on the private inputs."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                366,
+                913,
+                532
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "However, this comes at a small additional cost: the value of the variable i can no longer be determined at the time of circuit generation. So, the array accesses at line 6 and line 8 will now be expensive, requiring full multiplexers. This does not occur at the innermost loop levels, and the asymptotic complexity is therefore unaffected. Most other array accesses in the program involve indices known at the time of circuit generation, and are therefore trivially implemented (e.g., unrolled version of loop (C) will have constant values for j in each copy of the loop body)."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                532,
+                913,
+                684
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The only remaining trouble will be the stack push operation inside loop (C). Without the use of our stack construction, there is no simple way of avoiding yet another "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( n )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "complexity factor here. Simply substituting a naive construction of the stack with our data structure reduces the complexity of the generated circuit from "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( n ^ { 3 } )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "to "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\Theta ( n ^ { 2 } \\log n )"
+                    },
+                    {
+                        "type": "text",
+                        "content": ". The effect of this one simple change is shown in Figure 20. All other optimizations are identical in the compared versions to isolate the impact of just using our stack circuit constructions. In the case of 480 data points, the runtime drops from almost 10 hours to less than 1 hour."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                684,
+                913,
+                849
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "C. Test Input Generation"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                509,
+                859,
+                684,
+                875
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "To evaluate the impact of our structures on symbolic execution, we use the merging procedure of the merge sort algorithm. A version of this code is shown in Figure 21. However, the code shown has a bug: in the last loop, it uses the array elements without first checking if the index is already out of bounds. While the bug is quite simple, most popular automated tools today have a hard time detecting this bug. This is because of the well known path explosion problem, where the number of possible paths that can be taken through the code is exponential in MAXSIZE. We tried using a state-of-the-art symbolic execution tool, KLEE [9], on this example. However, it simply enumerates every single one of these paths, creating a new constraint set for each of them. As a result, it never actually generates a path that exposes the bug."
+                    }
+                ]
+            },
+            "bbox": [
+                508,
+                878,
+                913,
+                909
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": []
+            },
+            "bbox": [
+                490,
+                931,
+                506,
+                941
+            ]
+        }
+    ],
+    [
+        {
+            "type": "algorithm",
+            "content": {
+                "algorithm_caption": [],
+                "algorithm_content": [
+                    {
+                        "type": "text",
+                        "content": "1 #define MAXSIZE 100\nint merge (int *arr1, int *arr2, int n, int *dest) {\n    int i, j, k;\n    if (n > MAXSIZE) return -1;\n6 for (i = 1; i < n; ++i)\n    if (arr1[i-1] > arr1[i]) return -1;\n    for (j = 1; j < n; ++j)\n    if (arr2[j-1] > arr2[j]) return -1;\n    i = j = 0;\n11 for (k = 0; k < 2 * n; ++k) {\n    if (arr1[i] < arr2[j]) dest[k] = arr1[i++];\n    else dest[k] = arr2[j++];\n    }\n    return 0;\n16 }\nint main() {\n    int a[MAXSIZE], b[MAXSIZE], dest[2*MAXSIZE];\n    int n;\n21 fromInput(a, b, &n);\n    merge(a, b, n, dest);\n}"
+                    }
+                ]
+            },
+            "bbox": [
+                68,
+                95,
+                398,
+                388
+            ]
+        },
+        {
+            "type": "chart",
+            "content": {
+                "image_source": {
+                    "path": "images/9edde1126f1aeadf88098b04550fd1a91a135bb8c12e3924d4d3c8a0c8b7cb72.jpg"
+                },
+                "content": "| Size of array, MAXSIZE | Baseline | Stacks replacing arrays |\n| --------------------- | -------- | ----------------------- |\n| 20                    | 0.05     | 0.05                    |\n| 40                    | 0.3      | 0.1                     |\n| 60                    | 1.5      | 0.3                     |\n| 80                    | 10.0     | 0.5                     |\n| 100                   | 7.0      | 1.0                     |\n| 200                   | 200.0    | 5.0                     |",
+                "chart_caption": [
+                    {
+                        "type": "text",
+                        "content": "Figure 21. A C program fragment for the merge procedure of merge sort. It has a bug since it does not check if i or j are already out of bounds in the last loop body."
+                    },
+                    {
+                        "type": "text",
+                        "content": "Figure 22. Time taken to solve for an input that triggers a buffer overflow. The scale for the y-axis is logarithmic. For the largest case, the speedup is over 30x."
+                    }
+                ],
+                "chart_footnote": []
+            },
+            "sub_type": "line chart",
+            "bbox": [
+                101,
+                455,
+                468,
+                625
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": []
+            },
+            "bbox": [
+                81,
+                712,
+                488,
+                909
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Instead, we converted the entire computation into a circuit (which is the same as fully joining all the paths together into a large constraint, as described in Section III), and added constraints to let a SAT solver find an input that exposes an out-of-bounds access. We solve the same problem through the SAT solver twice: in one run we change the array access on lines 12 and 13 to use our stack structure, while in the other case we leave it unchanged. The timing results are shown in Figure 22. The circuit structures reduce the time to find the bug from over 3 hours to just 6 minutes when the array size is 200 elements."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                93,
+                913,
+                258
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "In practice, programs often have buffer overflow errors like these that are not triggered unless the data size is large and has a particular pattern of values. However, most complicated access patterns involving such large arrays are considered impractical for symbolic execution systems in use today. Our example here clearly shows the value in thinking of the constraint sets in terms of static circuits, and using that abstraction to create more optimized queries."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                260,
+                911,
+                380
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Although in our experiments we manually wrote a program that generates queries for this particular function, we expect that this process can be more automated in future. At least for the common cases described in Section IV, it should not be too hard for an automated tool to replace array uses with the stack and queue structures that we describe here, obtaining the same speedups we show here."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                381,
+                913,
+                486
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "VII. RELATED WORK"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                630,
+                496,
+                790,
+                508
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "While we include cyclic circuits in our notion of static valued circuits, the special case of acyclic circuits have been extensively studied in the past. Classical results from circuit complexity provides bounds for the sizes of many interesting families of functions. Examples of such families include symmetric functions [31], monotonic functions [2], and threshold functions [8]. Such functions tend to be too simple or restrictive for our purposes. The result most relevant to our work is Pippenger and Fischer’s classical paper on oblivious Turing machines [47], where they show how any Turing machine with sequential access to a tape can be simulated in a combinatorial circuit of Θ(n log n) size where n is the number of steps to simulate. While a sequential tape can be immediately used as a stack, it is not obvious how to extend their result to a FIFO queue, which is why we do not use their circuit. Moreover, we optimize our designs to better suit our application targets. For example, Pippenger and Fischer’s design needs to support only one general operation — simulating a single Turing machine time step. This is far too general for our needs, and we generate much less expensive specialized push and pop circuits."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                516,
+                913,
+                833
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Besides results for circuit complexity, the two application targets that we focus on in this paper have seen rapid improvements in speed in recent years. Below we summarize some of the important ideas that made this possible, and how they relate to our work."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                833,
+                913,
+                907
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": []
+            },
+            "bbox": [
+                490,
+                931,
+                508,
+                943
+            ]
+        }
+    ],
+    [
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "A. Secure Computation — Garbled Circuits"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                83,
+                93,
+                382,
+                108
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Work enabling fast execution of garbled circuits often focuses at the level of the underlying protocol, without changing the circuit being simulated. This includes the free XOR trick [34] that almost eliminates the cost of executing XOR gates, garbled row reductions that reduce communication overhead by 25% [46], and pipelined execution that overlaps the various phases of execution for scalability and reduced latency [28]. Since our techniques do not depend on any of the specifics of the underlying protocol, they can be used in combination with all of these popular optimizations."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                112,
+                485,
+                263
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Until recently, garbled circuit execution systems were considered practical only against an honest-but-curious adversary, execution of billion gate circuits against a fully malicious adversary has been demonstrated recently by Kreuter et al. [35] by extensive use of parallelism. They used the cutand-choose technique outlined by Lindell and Pinkas [38] to make their execution secure against active malicious parties. Another, more efficient, technique for secure execution of garbled circuits against active adversaries with minimal privacy leakage is based on dual execution [29, 41]. Since our optimizations only impact the circuits, they can be used with any of these flavors of garbled circuit protocols."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                265,
+                486,
+                444
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Gordon et al. [23] recently demonstrated a hybrid secure computation protocol involving garbled circuits and oblivious RAM that provides general random access to arrays in sublinear time. Their protocol still has a very high overhead due to the use of Oblivious RAM (ORAM) structures. Our purely circuit-based solutions, on the other hand, are much faster whenever they are applicable. In terms of absolute performance, the fastest they reported was about 9.5 seconds per element access (for an array of 218 elements). Because of such high overheads, it was actually still faster to na¨ıvely multiplex over the entire array unless the array is big (in their implementation, they break-even at arrays of approximately 260,000 elements). Our circuit structures are orders of magnitude faster in the cases we can handle, and as shown in Section VI we provide advantages for much smaller data sizes."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                445,
+                486,
+                685
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Many recent frameworks and compilers such as Fairplay [39] and CMBC-GC [26] provide ways to produce garbled circuit protocols starting from high-level programs. Although we have not focused on automatic circuit compilation, we hope that in future such tools will be able to automatically determine which circuit structure is applicable a given situation. This would allow programmers to write code naturally using standard data structures like arrays, but generate circuits that automatically implement array accesses using appropriate less expensive data structures to achieve reasonable performance."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                686,
+                486,
+                852
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "B. Symbolic Execution"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                83,
+                859,
+                241,
+                875
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The development of symbolic execution as a tool for static analysis has, in large part, been aided by the concurrent improvements in constraint solvers. With modern constraint solvers, symbolic execution systems such as KLEE [9] and EXE [10] are able analyze a program and solve for inputs that drive execution of the given program along a certain path. We hope that our methods would make it easier for such tools to handle far more complicated programs than they are currently able to."
+                    }
+                ]
+            },
+            "bbox": [
+                83,
+                878,
+                486,
+                909
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": []
+            },
+            "bbox": [
+                506,
+                93,
+                911,
+                199
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "More recent advances in this field mostly focused on improving scalability of these tools and on solving the exponential path explosion problem. Path explosion is a notorious problem where the number of paths to be explored is exponential in the number of branches along that path. Solutions recently proposed include compositional methods and state merging. Compositional approaches (e.g., [1, 18, 20]) attempt to keep the paths shorter by analyzing one function at a time and composing the results together later, often lazily. In practice, however, state joining [24, 36] seems to provide better results where several paths are merged into one larger query the way we did here. Some researchers have also noted how this method can be seen as a strict generalization of the compositional methods [36]."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                200,
+                911,
+                412
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Something we did not address in this paper is how to determine loop bounds, which is necessary since loops must be completely unrolled. There has been a lot of recent work in this area, all of which complements our work on arrays. For example, Obdrzˇalek and Trt´ ´ık [44] recently showed how integer recurrence equations can sometimes be used to solve for an upper bound. Saxena et al. demonstrated how an input grammar specification can sometimes be used to determine loop bounds [49]. Given how loops are often used in conjunction with arrays, we believe our work will further broaden the scope of these techniques to more complicated coding patterns."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                414,
+                913,
+                595
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "VIII. CONCLUSION"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                640,
+                622,
+                782,
+                635
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "We showed how a common set of ideas can be used to speed up common programming patterns in generic secure computation and symbolic execution of programs, two previously unrelated applications. Both of these applications depend on static circuits. We devised circuit structures that lead to large speedups for several common data structures. Further, we demonstrated how slow array access operations in programs can often be replaced by more specialized data structures like stack, queue, and associative map, achieving asymptotic improvements in runtime. We are optimistic that similar approaches can be taken with other data structures to provide similar gains for a wide range of applications. Although our work focused on manual implementation, we believe such transformations could be automated in many cases, and our results point to future opportunities for automatically generating efficient static circuits for secure computation and symbolic execution."
+                    }
+                ]
+            },
+            "bbox": [
+                506,
+                652,
+                913,
+                909
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "13"
+                    }
+                ]
+            },
+            "bbox": [
+                490,
+                931,
+                508,
+                943
+            ]
+        }
+    ],
+    [
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "ACKNOWLEDGMENTS"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                207,
+                95,
+                361,
+                107
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "We thank William Melicher for developing the backend tools we used for testing our garbled circuit applications. Frequent discussion with Benjamin Kreuter provided valuable resources and citations that helped shape this work in its early stages. We thank abhi shelat for helping us find several further opportunities for optimizations, and thank Yan Huang, Gabriel Robins, and Westley Weimer for their helpful comments and suggestions on this work. This work was supported by grants from the National Science Foundation, Air Force Office of Scientific Research, and Google. The contents of this paper, however, do not necessarily reflect the views of the US Government."
+                    }
+                ]
+            },
+            "bbox": [
+                81,
+                113,
+                486,
+                294
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "REFERENCES"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                236,
+                305,
+                333,
+                318
+            ]
+        },
+        {
+            "type": "list",
+            "content": {
+                "list_type": "reference_list",
+                "list_items": [
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[1] Saswat Anand, Patrice Godefroid, and Nikolai Tillmann. Demand-driven Compositional Symbolic Execution. Tools and Algorithms for the Construction and Analysis of Systems, 2008."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[2] A.E. Andreev. On a Method for Obtaining Lower Bounds for the Complexity of Individual Monotone Functions. Soviet Mathematics Doklady, 31(3), 1985."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[3] Domagoj Babic and Alan J. Hu. Calysto: Scalable and Precise Extended Static Checking. In International Conference on Software Engineering, 2008."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[4] Ken E. Batcher. Sorting Networks and their Applications. In Spring Joint Computer Conference, 1968."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[5] Armin Biere. Lingeling and Friends at the SAT Competition 2011. FMV Report Series Technical Report, 11(1), 2011."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[6] Dan Bogdanov, Riivo Talviste, and Jan Willemson. Deploying Secure Multi-Party Computation for Financial Data Analysis. In Financial Cryptography and Data Security, 2012."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[7] Peter Bogetoft, Dan Christensen, Ivan Damgard, Mar- ˚ tin Geisler, Thomas Jakobsen, Mikkel Krøigaard, Janus Nielsen, Jesper Nielsen, Kurt Nielsen, Jakob Pagter, Michael Schwartzbach, and Tomas Toft. Secure Multiparty Computation Goes Live. In Financial Cryptography and Data Security, 2009."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[8] Ravi B. Boppana. Amplification of Probabilistic Boolean Formulas. In Foundations of Computer Science, 1985."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[9] Cristian Cadar, Daniel Dunbar, and Dawson Engler. KLEE: Unassisted and Automatic Generation of High-coverage Tests for Complex Systems Programs. In Operating Systems Design and Implementation (OSDI), 2008."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[10] Cristian Cadar, Vijay Ganesh, Peter M. Pawlowski, David L. Dill, and Dawson R. Engler. EXE: Automatically Generating Inputs of Death. ACM Transactions on Information and System Security (TISSEC), 12(2), 2008."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[11] Alberto Coen-Porisini, Giovanni Denaro, Carlo Ghezzi, and Mauro Pezze. Using Symbolic Execution for Verifying ´"
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "Safety-critical Systems. ACM SIGSOFT Software Engineering Notes, 26(5), 2001."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[12] Leonardo De Moura and Nikolaj Bjørner. Z3: An Efficient SMT Solver. Tools and Algorithms for the Construction and Analysis of Systems, 2008."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[13] Martin Ester, Hans-Peter Kriegel, Jorg Sander, and Xiaowei ¨ Xu. A Density-based Algorithm for Discovering Clusters in Large Spatial Databases with Noise. In Knowledge Discovery and Data Mining, volume 1996, 1996."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[14] Cormac Flanagan, K. Rustan M. Leino, Mark Lillibridge, Greg Nelson, James B. Saxe, and Raymie Stata. Extended Static Checking for Java. ACM SIGPLAN Notices, 37(5), 2002."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[15] Michael J. Freedman, Kobbi Nissim, and Benny Pinkas. Efficient Private Matching and Set Intersection. In EUROCRYPT, 2004."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[16] Vijay Ganesh and David Dill. A Decision Procedure for Bitvectors and Arrays. In Computer Aided Verification, 2007."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[17] Craig Gentry. A Fully Homomorphic Encryption Scheme. PhD thesis, Stanford University, 2009."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[18] Patrice Godefroid. Compositional Dynamic Test Generation. ACM SIGPLAN Notices, 42(1), 2007."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[19] Patrice Godefroid, Michael Y. Levin, and David Molnar. Automated Whitebox Fuzz Testing. In Network and Distributed System Security Symposium (NDSS), 2008."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[20] Patrice Godefroid, Aditya V. Nori, Sriram K. Rajamani, and Sai Deep Tetali. Compositional May-Must Program Analysis: Unleashing the Power of Alternation. ACM SIGPLAN Notices, 45(1), 2010."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[21] Shafi Goldwasser, Silvio M. Micali, and Avi Wigderson. How to Play Any Mental Game, or a Completeness Theorem for Protocols with an Honest Majority. In Symposium on Theory of Computing (STOC), 1987."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[22] Michael T. Goodrich. Randomized Shellsort: A Simple Oblivious Sorting Algorithm. In ACM-SIAM Symposium on Discrete Algorithms, 2010."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[23] S. Dov Gordon, Jonathan Katz, Vladimir Kolesnikov, Fernando Krell, Tal Malkin, Mariana Raykova, and Yevgeniy Vahlis. Secure Two-Party Computation in Sublinear (Amortized) Time. In ACM Conference on Computer and Communications Security (CCS), 2012."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[24] Trevor Hansen, Peter Schachte, and Harald Søndergaard. State Joining and Splitting for the Symbolic Execution of Binaries. In Runtime Verification, 2009."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[25] Wilko Henecka, Stefan Kogl, Ahmad-Reza Sadeghi, Thomas ¨ Schneider, and Immo Wehrenberg. TASTY: Tool for Automating Secure Two-Party Computations. In ACM Conference on Computer and Communications Security (CCS), 2010."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[26] Andreas Holzer, Martin Franz, Stefan Katzenbeisser, and Helmut Veith. Secure Two-Party Computations in ANSI C. In ACM Conference on Computer and Communications Security (CCS), 2012."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[27] Yan Huang, David Evans, and Jonathan Katz. Private Set Intersection: Are Garbled Circuits Better than Custom Protocols? In Network and Distributed System Security Symposium (NDSS), 2011."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[28] Yan Huang, David Evans, Jonathan Katz, and Lior Malka. Faster Secure Two-Party Computation using Garbled Circuits. In USENIX Security Symposium, 2011."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[29] Yan Huang, Jonathan Katz, and David Evans. Quid-Pro-Quo-tocols: Strengthening Semi-Honest Protocols with Dual Execution. In IEEE Symposium on Security and Privacy, 2012."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[30] Yan Huang, Lior Malka, David Evans, and Jonathan Katz. Efficient Privacy-preserving Biometric Identification. In Network and Distributed System Security Symposium (NDSS), 2011."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[31] V.M. Khrapchenko. The Complexity of the Realization of Symmetrical Functions by Formulae. Mathematical Notes, 11(1), 1972."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[32] Sarfraz Khurshid, Corina Pas˘ areanu, and Willem Visser. ˘ Generalized Symbolic Execution for Model Checking and Testing. Tools and Algorithms for the Construction and Analysis of Systems, 2003."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[33] Vladimir Kolesnikov, Ahmad-Reza Sadeghi, and Thomas Schneider. Improved Garbled Circuit Building Blocks and Applications to Auctions and Computing Minima. Cryptology and Network Security, 2009."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[34] Vladimir Kolesnikov and Thomas Schneider. Improved Garbled Circuit: Free XOR Gates and Applications. Automata, Languages and Programming, 2008."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[35] Ben Kreuter, abhi shelat, and Chih-hao Shen. Billion-gate Secure Computation with Malicious Adversaries. In USENIX Security Symposium, 2012."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[36] Volodymyr Kuznetsov, Johannes Kinder, Stefan Bucur, and George Candea. Efficient State Merging in Symbolic Execution. In ACM SIGPLAN Conference on Programming Language Design and Implementation, 2012."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[37] Yehuda Lindell and Benny Pinkas. A Proof of Security of Yaos Protocol for Two-Party Computation. Journal of Cryptology, 22(2), 2009."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[38] Yehuda Lindell and Benny Pinkas. Secure Two-Party Computation via Cut-and-Choose Oblivious Transfer. Theory of Cryptography, 2011."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[39] Dahlia Malkhi, Noam Nisan, Benny Pinkas, and Yaron Sella. Fairplay — a Secure Two-Party Computation System. In USENIX Security Symposium, 2004."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[40] William Melicher, Samee Zahur, and David Evans. An Intermediate Language for Garbled Circuits. IEEE Symposium on Security and Privacy Poster Abstract, May 2012."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[41] Payman Mohassel and Matthew Franklin. Efficiency Tradeoffs for Malicious Two-Party Computation. Public Key Cryptography, 2006."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[42] Moni Naor, Benny Pinkas, and Omer Reingold. Distributed Pseudo-Random Functions and KDCs. In EUROCRYPT, 1999."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[43] Jesper B. Nielsen, Peter S. Nordholt, Claudio Orlandi, and Sai S. Burra. A New Approach to Practical Active-Secure Two-Party Computation. In CRYPTO, 2012."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[44] Jan Obdrzˇalek and Marek Trt ´ ´ık. Efficient Loop Navigation for Symbolic Execution. Automated Technology for Verification and Analysis, 2011."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[45] Benny Pinkas. Cryptographic Techniques for Privacypreserving Data Mining. ACM SIGKDD Explorations Newsletter, 4(2), 2002."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[46] Benny Pinkas, Thomas Schneider, Nigel P. Smart, and Stephen C. Williams. Secure Two-Party Computation is Practical. ASIACRYPT, 2009."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[47] Nicholas Pippenger and Michael J. Fischer. Relations among Complexity Measures. Journal of the ACM, 26(2), 1979."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[48] Corina S. Psreanu, Peter C. Mehlitz, David H Bushnell, Karen Gundy-Burlet, Michael Lowry, Suzette Person, and Mark Pape. Combining Unit-level Symbolic Execution and Systemlevel Concrete Execution for Testing NASA Software. In International Symposium on Software Testing and Analysis, 2008."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[49] Prateek Saxena, Pongsin Poosankam, Stephen McCamant, and Dawn Song. Loop-Extended Symbolic Execution on Binary Programs. In International Symposium on Software Testing and Analysis, 2009."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[50] Axel Schropfer, Florian Kerschbaum, and Gunter Muller. L1: an Intermediate Language for Mixed-protocol Secure Computation. In Computer Software and Applications Conference (COMPSAC), 2011."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[51] Claude Shannon. A Symbolic Analysis of Relay and Switching Circuits. MIT Master’s Thesis, 1937."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[52] G. S. Tseitin. On the Complexity of Derivation in Propositional Calculus. Structures in Constructive Mathematics and Mathematical Logic, Part II, 1968."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[53] Marten Van Dijk, Craig Gentry, Shai Halevi, and Vinod Vaikuntanathan. Fully Homomorphic Encryption over the Integers. EUROCRYPT, 2010."
+                            }
+                        ]
+                    },
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[54] Andrew C. Yao. Protocols for Secure Computations. In Foundations of Computer Science (FOCS), 1982."
+                            }
+                        ]
+                    }
+                ]
+            },
+            "bbox": [
+                83,
+                323,
+                490,
+                911
+            ]
+        },
+        {
+            "type": "list",
+            "content": {
+                "list_type": "reference_list",
+                "list_items": []
+            },
+            "bbox": [
+                504,
+                89,
+                919,
+                910
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "14"
+                    }
+                ]
+            },
+            "bbox": [
+                490,
+                931,
+                508,
+                943
+            ]
+        }
+    ],
+    [
+        {
+            "type": "list",
+            "content": {
+                "list_type": "reference_list",
+                "list_items": []
+            },
+            "bbox": [
+                84,
+                94,
+                486,
+                893
+            ]
+        },
+        {
+            "type": "list",
+            "content": {
+                "list_type": "reference_list",
+                "list_items": []
+            },
+            "bbox": [
+                509,
+                94,
+                911,
+                882
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "15"
+                    }
+                ]
+            },
+            "bbox": [
+                490,
+                931,
+                508,
+                943
+            ]
+        }
+    ]
+]
