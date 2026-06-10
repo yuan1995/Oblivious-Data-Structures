@@ -1,0 +1,10 @@
+FindOptimal
+FormatDimacs
+SorterTests
+TestCircuits
+TestCircuits.hs
+bin/
+gcilouts/
+dimacsOut/
+tmp/
+*.swp

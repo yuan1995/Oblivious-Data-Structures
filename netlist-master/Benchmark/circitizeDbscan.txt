@@ -1,0 +1,123 @@
+-- linear nested loops
+for loop1  	outer = true
+  x        	for (loop1+loop2):
+  for loop2	  if outer && loop1: x !outer
+    y      	  else (!outer) && loop2: y !outer
+  z        	  if newOuter && oldLoop1: z
+
+
+Something like bellman ford won't work, since multiple clusters will have to be joined then
+
+Params: eps,minpts
+
+DBSCAN_pushCheck(p):
+  C=1;
+  pushed[]=false
+  for each p: if cluster[p]==0: scanOut(p,C)
+
+scanOut(p,&C,&pushed):
+  P=neighbors(eps,p)
+  if |P|<minpts: return
+  foreach p in P: pushed[p]=true, stk.push(p)
+  curCluster = C++;
+  while !Stk.empty:
+    cur = stk.pop()
+    if cluster[cur]!=0: continue
+    cluster[cur]=curCluster
+    P' = neighbors(eps,cur)
+    if |P'|<minpts: continue
+    foreach p' in P': if not pushed[p']: 
+      pushed[p']=true
+      stk.push(p')
+
+
+DBSCAN_pulped(p):
+  C=0
+  cluster[]=0
+  for each i:
+    if cluster[i]!=0: continue
+    P = neighbors(i);
+    if |P|<minpts: continue
+    C++;
+    foreach p in P: if cluster[p]!=0:
+      cluster[p]=C
+      stk.push(p)
+    while(!stk.empty())
+      cur=stk.pop();
+      P = neighbors(cur)
+      if |P| < minpts: continue
+      foreach p in P: if cluster[p]!=0:
+        cluster[p]=C
+        stk.push(p)
+
+C=0
+pushed[]=false
+outer = true
+i = 0
+stk = empty
+unroll 2*n:
+  pushNeeded = false
+  if outer && i<n && cluster[i]==0:
+    pushNeeded = true
+    cp = i
+    outer = false
+  else if !outer && stk.empty: outer=true
+  else if !outer:
+    cur = stk.pop()
+    if cluster[cur]!=0: continue
+    cluster[cur] = C
+    cp = cur
+    pushNeeded = true
+  if pushNeeded:
+    P = neighbors(eps,cp)
+    if |P|>=minpts:
+      foreach p in P: if not pushed[p]:
+        pushed[p] = true
+        stk.push(p)
+        if oldOuter: C++
+  if newOuter && oldI<n then: i++
+------------------------------------- Stacky version -----------------------------------
+DBSCAN(p):
+  C=0;
+  for each p: if cluster[p]==0: scanOut(p,C)
+
+scanOut(p,&C):
+  P=neighbors(eps,p)
+  if |P|<minpts: return
+  Stk = P
+  curCluster = ++C;
+  while !Stk.empty:
+    cur = stk.pop()
+    if cluster[cur]!=0: continue
+    cluster[cur]=curCluster
+    P' = neighbors(eps,cur)
+    if |P'|<minpts: continue
+    foreach p' in P': stk.push(p')
+
+Now slowly turn this whole thing into a circuit, step by step. Step 1:
+
+DBSCAN(p,eps,minpts)
+  C=0;
+  outerloop=true;
+  i=0;
+  stk=empty;
+  loop 2*n times:
+    pushNeighbors = false
+    if outerloop && i<n:
+      if cluster[i]==0: pushNeighbors=true; cp = i; outerloop=false
+    else if !outerloop && stk.empty: outerloop=true
+    else if !outerloop:
+      cur = stk.pop()
+      if cluster[cur]==0:
+        cluster[cur]=C
+        cp = cur
+        pushNeighbors = true
+
+    if pushNeighbors:
+      P = neighbors(eps,cp)
+      if |P|>=minpts:
+        stk.pushAll P
+        if oldOuterloop && i<n: C++
+      else if oldOuterLoop: outerLoop = true
+
+    if newOuterloop && i<n: i++
