@@ -1,0 +1,1662 @@
+[
+    [
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "Garbled RAM CS 507, Topics in Cryptography: Secure Computation"
+                    }
+                ],
+                "level": 1
+            },
+            "bbox": [
+                222,
+                136,
+                772,
+                189
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "David Heath"
+                    }
+                ]
+            },
+            "bbox": [
+                442,
+                205,
+                555,
+                223
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Fall 2025"
+                    }
+                ]
+            },
+            "bbox": [
+                457,
+                234,
+                540,
+                252
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Last time, we saw an eficient, statistically-secure ORAM compiler: the Path ORAM construction. We also discussed how to plug ORAM into an interactive, secret-share-based MPC protocol. Recall that the main idea there was to (1) instantiate the ORAM client as a Boolean circuit and (2) instantiate the ORAM server by means of looking up data from a secret-shared memory. Thus, we can easily combine ORAM with, say, the GMW protocol to attain an interactive, secure protocol for programs that manipulate arrays/data structures."
+                    }
+                ]
+            },
+            "bbox": [
+                109,
+                284,
+                885,
+                375
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "One of our strategies throughout this course has been to first achieve a technique in the interactive setting, then to port the same technique to the constant-round garbled circuit setting. Can we do the same thing for RAM programs? Indeed, we can, and the resulting technique is called Garbled RAM, or GRAM [LO13]. Unfortunately, as we will see next, this translation of ORAM to the garbled circuit is not straightforward."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                375,
+                883,
+                436
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "The challenge of Garbled RAM"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                112,
+                454,
+                423,
+                470
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The main reason that Garbled RAM is significantly harder than secret-share-based RAM programs is that, unlike in the context of an interactive protocol, the garbler G is simply not available when the program is running."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                479,
+                883,
+                523
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Indeed, in the secret-shared setting, it is easy to emulate ORAM server behavior, because the parties emulate the ORAM server memory as a secret-shared array [A]. When the computation requests a memory address i, the parties simply read their respective share of the i-th index of the array, and the result is "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "[ A _ { i } ]"
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                523,
+                883,
+                570
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "In the garbled circuit setting, we can similarly consider garbling an array "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\{ A \\}"
+                    },
+                    {
+                        "type": "text",
+                        "content": ". Moreover, it is not hard to arrange that while the garbled circuit is running, it can reveal an array index i to the evaluator (by means of the evaluator decrypting that index). Using Free XOR labels, the array slot "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\left\\{ A _ { i } \\right\\}"
+                    },
+                    {
+                        "type": "text",
+                        "content": "is as follows:"
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                569,
+                883,
+                616
+            ]
+        },
+        {
+            "type": "equation_interline",
+            "content": {
+                "math_content": "(K _ {i}, K _ {i} \\oplus A _ {i} \\Delta)",
+                "math_type": "latex",
+                "image_source": {
+                    "path": "images/0064cd2bde2c898a0725eeb2ec0cd86d3738ac65740de597ba4728c0bc7bae15.jpg"
+                }
+            },
+            "bbox": [
+                439,
+                627,
+                555,
+                643
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Here, "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "K _ { i }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "is some random key known to the garbler, and "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "K _ { i } \\oplus A _ { i } \\Delta"
+                    },
+                    {
+                        "type": "text",
+                        "content": "is the evaluator’s key. So it easy for the evaluator to fetch "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "K _ { i } \\oplus A _ { i } \\Delta"
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                654,
+                883,
+                684
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Is not enough for only the evaluator to fetch her label; the garbler needs to hold the matching key "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "K _ { i }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "But the garbler does not know what i is! Indeed, i is an array index that was generated by the program execution; that is, it is some runtime value. So there is no way for the garbler to know which K to fetch. The reason this matters is that ultimately we wish to use the result of the array read "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "A _ { i }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "as input to some subsequent computation. So we wish to pass it as input to some Boolean gate. But the garbler does not know which key to encrypt that gate with!"
+                    }
+                ]
+            },
+            "bbox": [
+                109,
+                685,
+                885,
+                775
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "We could arrange that the evaluator simply sends i to the garbler. If we did that, then the garbler could easily fetch "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "K _ { i }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "and use that key to garble the subsequent gate. But then this would incur a round of communication, and every time we accessed an array we would need to communicate. Thus, this would lead to an ineficient interactive protocol, eliminating the most important property of garbled circuits."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                775,
+                885,
+                835
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "What we want from garbled RAM is a truly non-interactive mechanism by which the evaluator can indeed read array indices as specified by the program execution, without needing to talk to the garbler. To achieve this, we will need a diferent approach."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                835,
+                885,
+                881
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "1"
+                    }
+                ]
+            },
+            "bbox": [
+                493,
+                936,
+                504,
+                948
+            ]
+        }
+    ],
+    [
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "RAM is a Cyclic Circuit"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                112,
+                89,
+                354,
+                106
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The key idea that enables garbled RAM is the following: a random-access array can be eficiently described as a circuit, if we slightly change the rules for what a circuit is [HKO23]. Indeed, recall earlier that we discussed that a Boolean circuit cannot eficiently express the interface of an array, and the best we could do was to implement linear scans."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                114,
+                883,
+                174
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "However, if we reflect on a linear scan, we can see that what it does is implement a linear amount of hardware, almost all of which is completely useless. In particular, only a single memory slot of the array is actually read. What we want is some mechanism by which we can “re-use” those parts of our circuit that were not used before."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                175,
+                885,
+                234
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Namely, perhaps there is a way by which we can build a single, large circuit. The first time we access memory, we consume some parts of that circuit, but the other parts of the circuit are unused. The second time we access memory, we somehow use the same circuit again, consuming some of the parts of the circuit that were not yet used, and so on. If we could achieve something like this, we might have hope to construct a single circuit structure that supports, say, T accesses to an array, and whose size is "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "{ \\tilde { O } } ( T )"
+                    },
+                    {
+                        "type": "text",
+                        "content": ", where "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "{ \\tilde { O } } ( \\cdot )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "hides log T factors."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                234,
+                885,
+                325
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The reason this is not possible in a vanilla Boolean circuit is that there is no way to encode the idea of “returning to an unused part of the circuit”. Indeed, Boolean circuits are acylic graphs by definition. So all computation proceeds monotonically forward through the gates, and there is no way to go “backwards” to reclaim unused portions of the circuit."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                325,
+                883,
+                385
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "So let us relax this requirement! We can define a sensible notion of a Boolean circuit with cycles. As a first step, we can simply remove the restriction that circuits be acyclic."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                386,
+                883,
+                416
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The way to make this change meaningful is to also slightly change the behavior of our gates. In particular, we will ensure that an AND gate is eager. Specifically, we will consider AND gates "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "z \\gets x \\cdot y"
+                    },
+                    {
+                        "type": "text",
+                        "content": "where the first input x is treated specially. In particular, if the wire x is zero, then the AND gate will set z to zero immediately, perhaps before y is ever computed."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                417,
+                883,
+                476
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "This combination of changes—allowing circuit cycles and making AND gates eager—turns out to significantly strengthen the circuit model. This is best seen by an example."
+                    }
+                ]
+            },
+            "bbox": [
+                112,
+                477,
+                883,
+                507
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Suppose that we have two subcircuits f and "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "^ { g , }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "and suppose that f and g are complicated (i.e., have large numbers of gates) functions of their inputs. Suppose further that our circuit has (1) some input x and (2) a selection bit s; we wish to compute the following function:"
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                507,
+                885,
+                553
+            ]
+        },
+        {
+            "type": "equation_interline",
+            "content": {
+                "math_content": "\\operatorname{goal} (x) = \\left\\{ \\begin{array}{l l} g (f (x)) & \\text { if } s = 0 \\\\ f (g (x)) & \\text { if } s = 1 \\end{array} \\right.",
+                "math_type": "latex",
+                "image_source": {
+                    "path": "images/c341dfbb36a818856f78a6f936a46ba84747b4a4845f9a8ef4d7c59d7e75d37d.jpg"
+                }
+            },
+            "bbox": [
+                387,
+                561,
+                607,
+                601
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Now, even with a standard acyclic circuit we can technically compute this function. The key ingredient is a multiplexer, which we can draw this way:"
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                609,
+                883,
+                641
+            ]
+        },
+        {
+            "type": "image",
+            "content": {
+                "image_source": {
+                    "path": "images/701cd056998dd91ba13e1b8a3b16e109de2664761808cce205fe42f8a171665c.jpg"
+                },
+                "content": "",
+                "image_caption": [],
+                "image_footnote": []
+            },
+            "bbox": [
+                403,
+                648,
+                591,
+                739
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "I.e., the mux computes the following:"
+                    }
+                ]
+            },
+            "bbox": [
+                112,
+                751,
+                383,
+                766
+            ]
+        },
+        {
+            "type": "equation_interline",
+            "content": {
+                "math_content": "\\operatorname{mux} (s, x, y) = \\left\\{ \\begin{array}{l l} x & \\text { if } s = 0 \\\\ y & \\text { if } s = 1 \\end{array} \\right.",
+                "math_type": "latex",
+                "image_source": {
+                    "path": "images/2028d54e786e7ad8dc8ed20dbdde7fcd359c048dd1e9fbfedcdeff8a767aa910.jpg"
+                }
+            },
+            "bbox": [
+                398,
+                773,
+                596,
+                814
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Now, to implement goal, we can do the following:"
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                824,
+                477,
+                839
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "• Feed x into both f and g to obtain both "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f ( x )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "and "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "g ( x )"
+                    }
+                ]
+            },
+            "bbox": [
+                135,
+                848,
+                555,
+                863
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "• Use a multiplexer, based on s, to select one of these computations."
+                    }
+                ]
+            },
+            "bbox": [
+                137,
+                873,
+                633,
+                887
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "• Feed the multiplexed result into new copies of f and "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "g ."
+                    }
+                ]
+            },
+            "bbox": [
+                137,
+                897,
+                552,
+                912
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "2"
+                    }
+                ]
+            },
+            "bbox": [
+                493,
+                936,
+                504,
+                948
+            ]
+        }
+    ],
+    [
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "• Use a multiplexer, based on s, to select one of these computations."
+                    }
+                ]
+            },
+            "bbox": [
+                137,
+                90,
+                635,
+                107
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "If we do this, we can indeed implement goal. However, this schematic is problematic because it includes two copies of "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f"
+                    },
+                    {
+                        "type": "text",
+                        "content": "and two of "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "^ { g , }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "i.e. four total expensive subcircuits. If we are a bit more careful, we can reduce this to only three expensive subcircuits. However, what we really want, and what seems intuitively possible, is that we want to include only a single copy of "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f"
+                    },
+                    {
+                        "type": "text",
+                        "content": "and a single copy of "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "g ."
+                    },
+                    {
+                        "type": "text",
+                        "content": "After all, we know statically that goal does not “use” more than one call to "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f \\ ( \\mathrm { r e s p . } \\ g )"
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                116,
+                883,
+                191
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "But if our circuits are acyclic, it is not possible to achieve goal with only two subcircuits. The reason is simply one of topology: Our circuit must include a path from "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f"
+                    },
+                    {
+                        "type": "text",
+                        "content": "to "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "^ { g , }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "to handle the case where "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "s = 0"
+                    },
+                    {
+                        "type": "text",
+                        "content": "Thus, if "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f"
+                    },
+                    {
+                        "type": "text",
+                        "content": "and "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "g"
+                    },
+                    {
+                        "type": "text",
+                        "content": "are included only once each, then "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f"
+                    },
+                    {
+                        "type": "text",
+                        "content": "must be topologically before "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "g ."
+                    },
+                    {
+                        "type": "text",
+                        "content": ". And our circuit must also include a path from "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "g"
+                    },
+                    {
+                        "type": "text",
+                        "content": "to "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f ,"
+                    },
+                    {
+                        "type": "text",
+                        "content": "to handle the case where "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "s = 1"
+                    },
+                    {
+                        "type": "text",
+                        "content": ". Thus, if "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f"
+                    },
+                    {
+                        "type": "text",
+                        "content": "and "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "g"
+                    },
+                    {
+                        "type": "text",
+                        "content": "are included only once each, then "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "g"
+                    },
+                    {
+                        "type": "text",
+                        "content": "must be topologically before "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f ."
+                    },
+                    {
+                        "type": "text",
+                        "content": "But both of the above cannot be simultaneously achieved in an acyclic circuit; one subcircuit must come before the other."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                191,
+                883,
+                282
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "However, once we relax our circuit definition, we can meaningfully draw the following circuit:"
+                    }
+                ]
+            },
+            "bbox": [
+                135,
+                282,
+                808,
+                297
+            ]
+        },
+        {
+            "type": "image",
+            "content": {
+                "image_source": {
+                    "path": "images/518c6e5851e4d0264a34841380bd359c21aa3fb47bbbff09ed6f738128e57596.jpg"
+                },
+                "content": "",
+                "image_caption": [],
+                "image_footnote": []
+            },
+            "bbox": [
+                395,
+                306,
+                601,
+                425
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "The claim is that this circuit—which includes only one copy of "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f"
+                    },
+                    {
+                        "type": "text",
+                        "content": "and one of "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "g -"
+                    },
+                    {
+                        "type": "text",
+                        "content": "—indeed implements goal. We can see this by just considering what happens when we set s to 0 (resp. to 1)."
+                    }
+                ]
+            },
+            "bbox": [
+                112,
+                439,
+                880,
+                469
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "When "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "s = 0 ,"
+                    },
+                    {
+                        "type": "text",
+                        "content": "we can simply trace execution. First, the top-left MUX eagerly reads and outputs "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "x ,"
+                    },
+                    {
+                        "type": "text",
+                        "content": "due to the way that we stated AND gates now work. Thus, we can compute "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f ( x )"
+                    },
+                    {
+                        "type": "text",
+                        "content": ", which is then routed backwards into the bottom-left MUX. That MUX feeds "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f ( x )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "into "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "^ { g , }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "and we get "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "g ( f ( x ) )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "). If instead we set "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "s = 1"
+                    },
+                    {
+                        "type": "text",
+                        "content": "initially the top-left MUX cannot execute, but the bottom-left one can. Again tracing execution, the circuit computes "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f ( g ( x ) )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "), exactly as desired."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                469,
+                883,
+                546
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Generalizing to RAM. Our example circuit can be generalized from running two subcircuits in some order "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "\\mathrm { t o }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "running any polynomial number of subcircuits in some arbitrary order by means of a permutation/sorting network. As we have mentioned earlier in this course, sorting networks of size "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "{ \\tilde { O } } ( n )"
+                    },
+                    {
+                        "type": "text",
+                        "content": "are well-known. This arrangement starts to closely resemble random access memory when we additionally glue those subcircuits together sequentially:"
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                561,
+                883,
+                638
+            ]
+        },
+        {
+            "type": "image",
+            "content": {
+                "image_source": {
+                    "path": "images/ea92670c991f6ed2ef462f35870796977f9fac4e76d87def09e60f3384c00c66.jpg"
+                },
+                "content": "",
+                "image_caption": [],
+                "image_footnote": []
+            },
+            "bbox": [
+                416,
+                645,
+                580,
+                815
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Here, we glue n subcircuits "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f _ { i }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "together sequentially, and we also feed them output of a permutation network, and allow them to feed input into that same network. Feeding wires from "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f _ { i }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "into the network is analogous to writing to the array, and feeding output of the network into "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f _ { i }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "is analogous to reading to that array."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                829,
+                883,
+                875
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Indeed, there are only two gaps between the above picture and full-fledged RAM:"
+                    }
+                ]
+            },
+            "bbox": [
+                135,
+                875,
+                725,
+                890
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "3"
+                    }
+                ]
+            },
+            "bbox": [
+                493,
+                935,
+                504,
+                948
+            ]
+        }
+    ],
+    [
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "• The above network is a permutation, so each “memory slot” can only be read once. Full RAM, of course, allows arbitrary numbers of reads to each memory slot. It is not hard to compile RAM to this style of read-once memory. Indeed, we have already essentially seen the solution in our discussion of ORAM: write the read value to a new location, and keep track of where it lives in a recursively instantiated position map."
+                    }
+                ]
+            },
+            "bbox": [
+                135,
+                90,
+                885,
+                167
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "• In the above network, all routing decisions are made by some global string s, whereas in true RAM, each subcircuit "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "f _ { i }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "should decide locally which memory slot it will read. This is achieved by using a so-called “self-routing” permutation network. See [HKO23] for more details."
+                    }
+                ]
+            },
+            "bbox": [
+                135,
+                176,
+                883,
+                223
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "Cyclic Circuits can be Garbled"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                112,
+                239,
+                416,
+                257
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "With this perspective on RAM as a circuit, it is actually not hard to get some version of Garbled RAM. We just need to show how to garble the gates in our model."
+                    }
+                ]
+            },
+            "bbox": [
+                109,
+                265,
+                883,
+                295
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "But our gates are just standard Boolean circuits, except that AND gates now need this “eager” behavior on their first input. Actually, we have already seen how to achieve this! If we reflect on the half-gates optimization we saw earlier in this course, we can observe that a half-AND gate is precisely what is needed to achieve an AND gate."
+                    }
+                ]
+            },
+            "bbox": [
+                109,
+                295,
+                885,
+                354
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Indeed, consider an eager AND gate "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "z  x \\cdot y ."
+                    },
+                    {
+                        "type": "text",
+                        "content": "Recall that in half-gates, the garbler proceeds as follows:"
+                    }
+                ]
+            },
+            "bbox": [
+                135,
+                356,
+                883,
+                372
+            ]
+        },
+        {
+            "type": "equation_interline",
+            "content": {
+                "math_content": "\\begin{array}{l} k _ {z} ^ {0} \\leftarrow H (k _ {x} ^ {0}, \\mathsf {g i d}) \\\\ k _ {z} ^ {1} \\leftarrow k _ {z} ^ {0} \\oplus \\Delta \\\\ r \\leftarrow H (k _ {x} ^ {1}, \\mathsf {g i d}) \\oplus k _ {y} ^ {0} \\oplus k _ {z} ^ {0} \\end{array}",
+                "math_type": "latex",
+                "image_source": {
+                    "path": "images/4f029fc00970a8ed38dc788f5b8f8f13885948d56fb25ec0559c4b2e71ed2be2.jpg"
+                }
+            },
+            "bbox": [
+                401,
+                381,
+                594,
+                441
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Notice that when the garbler defines the output wire keys "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "k _ { z } ^ { 0 } , k _ { z } ^ { 1 }"
+                    },
+                    {
+                        "type": "text",
+                        "content": ", it is not necessary to know "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "k _ { y } ^ { 0 } !"
+                    },
+                    {
+                        "type": "text",
+                        "content": "Similarly, when the evaluator evaluates this circuit, if "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "x = 0"
+                    },
+                    {
+                        "type": "text",
+                        "content": ", then she can immediately use "
+                    },
+                    {
+                        "type": "equation_inline",
+                        "content": "k _ { x } ^ { 0 }"
+                    },
+                    {
+                        "type": "text",
+                        "content": "to decrypt the gate output, without knowing a key on the y wire. One crucial detail here is that we must tell the evaluator what x is for her to behave properly."
+                    }
+                ]
+            },
+            "bbox": [
+                109,
+                450,
+                883,
+                512
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Thus, the garbling procedure for a cyclic circuit is to simply (1) use Free XOR to encode wire values and (2) garble eager AND gates using the half-AND technique, leaking the first input of each AND gate to the evaluator."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                513,
+                883,
+                556
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "Roughly, the evaluator just evaluates gates in any order that makes sense at runtime, and hence she can, for example, indeed evaluate our example circuits above. Note that the evaluator learns the order in which gates evaluate."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                558,
+                883,
+                604
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "Cyclic Circuits can be made Oblivious"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                112,
+                621,
+                490,
+                638
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "As written above, our GC evaluator will learn the first input wire value on each AND gate, and hence the order in which all gates evaluate. This is potentially problematic for privacy."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                646,
+                883,
+                676
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "However, recall that when we discussed the half-gates technique, we were able to remove this leakage by means of combining two half AND gates to make a whole one. Indeed, while we revealed both first inputs to the underlying half gates, those first inputs were one-time-pad masked, and so gave no useful information to the evaluator."
+                    }
+                ]
+            },
+            "bbox": [
+                111,
+                676,
+                883,
+                736
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "In line with this, we can define a notion of an oblivious cyclic circuit, where all of the AND gate’s socalled control wires can be simulated. In the case of RAM, the key observation is that the order in which the evaluator reads the permutation can be made oblivious by using an oblivious RAM compiler to obfuscate that access pattern."
+                    }
+                ]
+            },
+            "bbox": [
+                109,
+                736,
+                885,
+                797
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "Wrapping Up"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                112,
+                816,
+                251,
+                834
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "We have now seen the main ideas underlying GRAM:"
+                    }
+                ]
+            },
+            "bbox": [
+                112,
+                840,
+                501,
+                856
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "• Construct RAM as a circuit."
+                    }
+                ]
+            },
+            "bbox": [
+                135,
+                866,
+                362,
+                880
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "• Make that circuit “oblivious” by means of an ORAM compiler."
+                    }
+                ]
+            },
+            "bbox": [
+                135,
+                891,
+                609,
+                906
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "4"
+                    }
+                ]
+            },
+            "bbox": [
+                493,
+                936,
+                504,
+                948
+            ]
+        }
+    ],
+    [
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "• Garble that oblivious circuit in a relatively obvious way."
+                    }
+                ]
+            },
+            "bbox": [
+                137,
+                90,
+                560,
+                106
+            ]
+        },
+        {
+            "type": "paragraph",
+            "content": {
+                "paragraph_content": [
+                    {
+                        "type": "text",
+                        "content": "These techniques combined yield a GC with total cost O<sup>˜</sup>(T ) that implements a T -step RAM program."
+                    }
+                ]
+            },
+            "bbox": [
+                112,
+                116,
+                848,
+                132
+            ]
+        },
+        {
+            "type": "title",
+            "content": {
+                "title_content": [
+                    {
+                        "type": "text",
+                        "content": "References"
+                    }
+                ],
+                "level": 2
+            },
+            "bbox": [
+                114,
+                154,
+                243,
+                172
+            ]
+        },
+        {
+            "type": "list",
+            "content": {
+                "list_type": "reference_list",
+                "list_items": [
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[HKO23] David Heath, Vladimir Kolesnikov, and Rafail Ostrovsky. Tri-state circuits - A circuit model that captures RAM. In Helena Handschuh and Anna Lysyanskaya, editors, CRYPTO 2023, Part IV, volume 14084 of LNCS, pages 128–160. Springer, Cham, August 2023."
+                            }
+                        ]
+                    }
+                ]
+            },
+            "bbox": [
+                114,
+                184,
+                883,
+                231
+            ]
+        },
+        {
+            "type": "list",
+            "content": {
+                "list_type": "reference_list",
+                "list_items": [
+                    {
+                        "item_type": "text",
+                        "item_content": [
+                            {
+                                "type": "text",
+                                "content": "[LO13] Steve Lu and Rafail Ostrovsky. How to garble RAM programs. In Thomas Johansson and Phong Q. Nguyen, editors, EUROCRYPT 2013, volume 7881 of LNCS, pages 719–734. Springer, Berlin, Heidelberg, May 2013."
+                            }
+                        ]
+                    }
+                ]
+            },
+            "bbox": [
+                114,
+                239,
+                880,
+                284
+            ]
+        },
+        {
+            "type": "page_number",
+            "content": {
+                "page_number_content": [
+                    {
+                        "type": "text",
+                        "content": "5"
+                    }
+                ]
+            },
+            "bbox": [
+                493,
+                936,
+                504,
+                948
+            ]
+        }
+    ]
+]
