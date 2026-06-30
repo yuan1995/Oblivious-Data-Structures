@@ -1,0 +1,956 @@
+[
+    {
+        "type": "text",
+        "text": "Garbled Circuit Optimizations CS 507, Topics in Cryptography: Secure Computation",
+        "text_level": 1,
+        "bbox": [
+            223,
+            137,
+            772,
+            189
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "text",
+        "text": "David Heath",
+        "bbox": [
+            442,
+            205,
+            553,
+            223
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "text",
+        "text": "Fall 2025",
+        "bbox": [
+            457,
+            234,
+            540,
+            252
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "text",
+        "text": "Last time, we completed an instantiation of a 2PC preprocessing functionality for malicious Boolean circuits. We used that preprocessing functionality to instantiate an interactive MPC protocol, where the parties expend communication rounds proportional to the multiplicative depth of their desired computation.",
+        "bbox": [
+            111,
+            284,
+            883,
+            330
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "text",
+        "text": "Recall that in the semi-honest setting, we were able to achieve MPC protocols that run in only a small constant number of rounds by leveraging the garbled circuit technique. Our goal over the next two lectures is to achieve maliciously-secure $2 \\mathrm { P C }$ protocols that run in a constant number of rounds. This will require us to re-examine the garbled circuit technique.",
+        "bbox": [
+            111,
+            330,
+            883,
+            390
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "text",
+        "text": "In particular, today we will not yet discuss malicious security. Instead, we will explore optimizations to the standard notion of semi-honest garbling. These optimizations are interesting in their own right, and are the result of a significant efort by the research community. In addition, the optimizations we will see today will make it easy to understand how to achieve the maliciously-secure construction we will see next time.",
+        "bbox": [
+            111,
+            390,
+            883,
+            450
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "text",
+        "text": "In particular, we will introduce powerful optimizations to the garbled circuit technique: the Free XOR technique and the half gates technique [KS08, ZRE15].",
+        "bbox": [
+            112,
+            450,
+            883,
+            482
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "text",
+        "text": "Garbled Circuit Review",
+        "text_level": 2,
+        "bbox": [
+            112,
+            500,
+            349,
+            516
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "text",
+        "text": "Recall that in garbled circuits, we assign our two compute parties asymmetric roles. The so-called garbler prepares an encoding of the circuit, and conveys encodings of circuit inputs via OT. The so-called evaluator uses those encodings to evaluate the circuit “under encryption”, obliviously obtaining an encoding of the output, which the parties jointly decrypt.",
+        "bbox": [
+            111,
+            523,
+            885,
+            584
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "text",
+        "text": "The main idea was to assign to each wire x in the circuit two keys $k _ { x } ^ { 0 } , k _ { x } ^ { 1 }$ . One key encodes a logical zero, the other encodes a logical one. From here, the idea was to encrypt the logical rows of the gate of each truth table. In particular, we used all four combinations of gate input keys to encrypt corresponding output keys. For example, an AND gate could be encrypted as follows:",
+        "bbox": [
+            111,
+            584,
+            883,
+            646
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "equation",
+        "text": "$$\n\\text { GarbleAND } ((K _ {x} ^ {0}, K _ {x} ^ {1}, K _ {y} ^ {0}, K _ {y} ^ {1}, K _ {z} ^ {0}, K _ {z} ^ {1})):\n$$",
+        "text_format": "latex",
+        "bbox": [
+            354,
+            655,
+            640,
+            674
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "equation",
+        "text": "$$\n(k _ {x} ^ {0}, c) \\leftarrow K _ {x} ^ {0}\n$$",
+        "text_format": "latex",
+        "bbox": [
+            366,
+            676,
+            464,
+            694
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "equation",
+        "text": "$$\n(k _ {x} ^ {1}, \\cdot) \\leftarrow K _ {x} ^ {1}\n$$",
+        "text_format": "latex",
+        "bbox": [
+            366,
+            696,
+            462,
+            714
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "equation",
+        "text": "$$\n(k _ {y} ^ {0}, d) \\leftarrow K _ {y} ^ {0}\n$$",
+        "text_format": "latex",
+        "bbox": [
+            367,
+            717,
+            464,
+            736
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "equation",
+        "text": "$$\n(k _ {y} ^ {1}, \\cdot) \\leftarrow K _ {y} ^ {1}\n$$",
+        "text_format": "latex",
+        "bbox": [
+            367,
+            738,
+            460,
+            757
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "equation",
+        "text": "$$\nr _ {0 0} \\leftarrow \\mathsf {E n c} (k _ {x} ^ {c}, \\mathsf {E n c} (k _ {y} ^ {d}, K _ {z} ^ {c \\cdot d}))\n$$",
+        "text_format": "latex",
+        "bbox": [
+            364,
+            758,
+            573,
+            777
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "equation",
+        "text": "$$\nr _ {0 1} \\leftarrow \\mathsf {E n c} (k _ {x} ^ {c}, \\mathsf {E n c} (k _ {y} ^ {\\neg d}, K _ {z} ^ {c \\cdot \\neg d}))\n$$",
+        "text_format": "latex",
+        "bbox": [
+            364,
+            780,
+            591,
+            799
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "equation",
+        "text": "$$\nr _ {1 0} \\leftarrow \\mathsf {E n c} (k _ {x} ^ {\\neg c}, \\mathsf {E n c} (k _ {y} ^ {d}, K _ {z} ^ {\\neg c \\cdot d}))\n$$",
+        "text_format": "latex",
+        "bbox": [
+            364,
+            801,
+            591,
+            820
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "equation",
+        "text": "$$\nr _ {1 1} \\leftarrow \\mathsf {E n c} (k _ {x} ^ {\\neg c}, \\mathsf {E n c} (k _ {y} ^ {\\neg d}, K _ {z} ^ {\\neg c \\cdot \\neg d}))\n$$",
+        "text_format": "latex",
+        "bbox": [
+            364,
+            821,
+            607,
+            842
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "equation",
+        "text": "$$\n\\mathbf {r e t u r n} (r _ {0 0}, r _ {0 1}, r _ {1 0}, r _ {1 1})\n$$",
+        "text_format": "latex",
+        "bbox": [
+            364,
+            845,
+            547,
+            861
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "page_number",
+        "text": "1",
+        "bbox": [
+            493,
+            898,
+            504,
+            909
+        ],
+        "page_idx": 0
+    },
+    {
+        "type": "text",
+        "text": "Above $r _ { i j }$ corresponds to the four “garbled rows”. Recall that values $c ,$ d are “colors”, corresponding to the point and permute trick. The above indicates how to garble an AND gate, but any four-input gate can be garbled in an analogous manner.",
+        "bbox": [
+            111,
+            90,
+            883,
+            136
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "text",
+        "text": "Notice that the size of the garbled truth table is the main cost consideration in GC. These truth tables must be sent from the garbler to the evaluator, so communication cost scales with GC table size, and it turns out that in GC-based protocol communication is typically the bottleneck in overall performance.",
+        "bbox": [
+            111,
+            136,
+            883,
+            181
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "text",
+        "text": "Examining the above approach, we can see that the size of each garbled gate is 4λ bits, since there are four encryptions, each of size λ. Today, we will see how to obtain a smaller garbled circuit. In particular, we will ultimately construct a garbling scheme where (1) each garbled AND gate has size 2λ bits, and each garbled XOR gate is “free”.",
+        "bbox": [
+            111,
+            181,
+            885,
+            244
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "text",
+        "text": "Garbled Row Reduction",
+        "text_level": 2,
+        "bbox": [
+            112,
+            260,
+            352,
+            277
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "text",
+        "text": "To start, let’s see how to reduce the size of any garbled gate from 4λ bits to 3λ bits.",
+        "bbox": [
+            112,
+            285,
+            722,
+            300
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "text",
+        "text": "For the time being, we will ignore the point and permute trick, and assume that all color bits are zero; we can reintegrate colors later.",
+        "bbox": [
+            111,
+            301,
+            883,
+            330
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "text",
+        "text": "Let’s start by making explicit our notion of encryption. Let’s assume each gate has a distinct id gid. We can reformulate a garble AND gate as follows:",
+        "bbox": [
+            111,
+            330,
+            883,
+            361
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "equation",
+        "text": "$$\n\\begin{array}{l} k _ {z} ^ {0}, k _ {z} ^ {1} \\in_ {\\S} \\{0, 1 \\} ^ {\\lambda} \\\\ r _ {0 0} \\leftarrow F (k _ {x} ^ {0}, (0, 0, \\mathsf {g i d})) \\oplus F (k _ {y} ^ {0}, (0, 0, \\mathsf {g i d})) \\oplus k _ {z} ^ {0} \\\\ r _ {0 1} \\leftarrow F (k _ {x} ^ {0}, (0, 1, \\mathsf {g i d})) \\oplus F (k _ {y} ^ {1}, (0, 1, \\mathsf {g i d})) \\oplus k _ {z} ^ {0} \\\\ r _ {1 0} \\leftarrow F (k _ {x} ^ {1}, (1, 0, \\mathsf {g i d})) \\oplus F (k _ {y} ^ {0}, (1, 0, \\mathsf {g i d})) \\oplus k _ {z} ^ {0} \\\\ r _ {1 1} \\leftarrow F (k _ {x} ^ {1}, (1, 1, \\mathsf {g i d})) \\oplus F (k _ {y} ^ {1}, (1, 1, \\mathsf {g i d})) \\oplus k _ {z} ^ {1} \\end{array}\n$$",
+        "text_format": "latex",
+        "bbox": [
+            321,
+            369,
+            673,
+            474
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "text",
+        "text": "Of course, more formally these rows should be randomly permuted according to point and permute. Assuming the evaluator obtains some appropriate combination of input keys, she can decrypt the corresponding output key.",
+        "bbox": [
+            111,
+            484,
+            883,
+            529
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "text",
+        "text": "The garbled row reduction technique observes that there is a degree of freedom in the above construction: the gate output keys are simply drawn uniformly at random. Namely, suppose that rather than setting $k _ { z } ^ { 0 }$ uniformly, the garbler instead chooses $k _ { z } ^ { 0 }$ according to the input keys. Namely, let’s define $k _ { z } ^ { 0 }$ as follows:",
+        "bbox": [
+            111,
+            529,
+            883,
+            575
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "equation",
+        "text": "$$\nk _ {z} ^ {0} \\leftarrow F (k _ {x} ^ {0}, (0, 0, \\mathsf {g i d})) \\oplus F (k _ {y} ^ {0}, (0, 0, \\mathsf {g i d}))\n$$",
+        "text_format": "latex",
+        "bbox": [
+            344,
+            585,
+            651,
+            604
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "text",
+        "text": "(More formally, we define whichever output key is encrypted in the first row this way. The identity of that key will depend on the color bits of the input keys.) Intuitively, the key $k _ { z } ^ { 0 }$ is still uniformly random to an evaluator who does not hold either $k _ { x } ^ { 0 }$ or $k _ { y } ^ { 0 }$ (because $F$ is a PRF), but now it can be deterministically computed by an evaluator who holds both of those input keys. In other words, we can now observe that the above row $r _ { 0 0 }$ is now the all-zeros string, so the garbler need not send it!",
+        "bbox": [
+            111,
+            614,
+            885,
+            690
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "text",
+        "text": "By choosing one of the output keys this way, the garbler has reduced the size of the garbled truth table from 4λ bits to 3λ bits. Again, the reason this is possible is because we leveraged a degree of freedom in the specification of gate output keys. Unfortunately, we cannot simply define two rows of the garbled truth table to be all zeros this way. The reason for this is that, again, the rows of the truth table should be randomly permuted. Thus, the evaluator should not learn which row holds $k _ { z } ^ { 1 }$ . In other words, we can only set statically-chosen rows to all zeros. In general, this currently restricts us to saving at most one row.",
+        "bbox": [
+            111,
+            690,
+            885,
+            781
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "text",
+        "text": "This trick is called the GRR3 (three garbled row-reduction) optimization.",
+        "bbox": [
+            135,
+            781,
+            669,
+            796
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "text",
+        "text": "Free XOR",
+        "text_level": 2,
+        "bbox": [
+            112,
+            814,
+            217,
+            830
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "text",
+        "text": "In our next optimization, we will consider specifically optimizing XOR gates, rather than general gates. One way to understand our goal is to reflect on the GMW protocol. Recall that in that protocol, XOR gates are somehow much simpler than AND gates. Namely, AND gates required OT, but XOR gates were computed locally. Can we achieve a similar efect for GC?",
+        "bbox": [
+            111,
+            839,
+            885,
+            869
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "page_number",
+        "text": "2",
+        "bbox": [
+            493,
+            898,
+            504,
+            909
+        ],
+        "page_idx": 1
+    },
+    {
+        "type": "text",
+        "text": "",
+        "bbox": [
+            111,
+            90,
+            883,
+            121
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "text",
+        "text": "Indeed we can. The main trick is to take an alternate perspective on wire keys. Recall, each wire x has two keys $k _ { x } ^ { 0 } , k _ { x } ^ { 1 }$ . But put another way, we could say that the wire x has a zero key $k _ { x } ^ { 0 }$ and a wire-specific correlation $\\Delta _ { x }$ . The wire key $k _ { x } ^ { 1 }$ is $k _ { x } ^ { 0 } \\oplus \\Delta _ { x }$",
+        "bbox": [
+            111,
+            122,
+            883,
+            167
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "text",
+        "text": "Now, the Free XOR trick is to garble circuits such that all wires use the same global correlation ∆. Namely, the garbler will assign each wire a uniform zero key $k _ { x } ^ { 0 } ,$ and it will define the one key as $k _ { x } ^ { 1 } = k _ { x } ^ { 0 } \\oplus \\Delta$ . If we consider the evaluator’s key at runtime, we can see that she will hold $k _ { x } ^ { 0 } \\oplus x \\Delta$ , where we overload the name of a wire with its value.",
+        "bbox": [
+            111,
+            166,
+            883,
+            226
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "text",
+        "text": "Now, if the garbler wishes to garble an XOR gate $z  x \\oplus y$ , he will simply define the output key as follows:",
+        "bbox": [
+            111,
+            227,
+            883,
+            257
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "equation",
+        "text": "$$\nk _ {z} ^ {0} \\leftarrow k _ {x} ^ {0} \\oplus k _ {y} ^ {0}\n$$",
+        "text_format": "latex",
+        "bbox": [
+            447,
+            255,
+            550,
+            273
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "text",
+        "text": "At runtime, the evaluator locally XORs her keys and obtains the appropriate output key:",
+        "bbox": [
+            112,
+            279,
+            756,
+            295
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "equation",
+        "text": "$$\nk _ {z} ^ {0} \\oplus (x \\oplus y) \\Delta\n$$",
+        "text_format": "latex",
+        "bbox": [
+            444,
+            304,
+            553,
+            321
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "text",
+        "text": "Thus, no communication is required to achieve garbled XOR gates.",
+        "bbox": [
+            112,
+            332,
+            596,
+            348
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "text",
+        "text": "Remark 1. Observe that a zero key $k _ { x } ^ { 0 }$ is known to the garbler, and that the evaluator obtains $k _ { x } ^ { 0 } \\oplus x \\Delta$ Notice that these two values together constitute an XOR secret share $[ x \\Delta ]$ . In other words, the parties hold {x}, where x is authenticated (only) to the garbler. This observation will be incredibly important when we consider the maliciously-secure authenticated garbling technique next time.",
+        "bbox": [
+            112,
+            356,
+            885,
+            417
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "text",
+        "text": "Note that while XOR gates are free, AND gates still require communication. Unfortunately, the Free XOR introduces correlations in wire keys, and this means that we can no longer prove security from the basic assumption that F is a PRF. Instead, we will for now grant ourselves a random oracle H. Using GRR3 (and ignoring point and permute), the garbler now handles AND gates as follows:",
+        "bbox": [
+            111,
+            426,
+            885,
+            488
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "equation",
+        "text": "$$\nk _ {z} ^ {0} \\leftarrow H (k _ {x} ^ {0}, 0, 0, \\mathsf {g i d}) \\oplus H (k _ {y} ^ {0}, 0, 0, \\mathsf {g i d})\n$$",
+        "text_format": "latex",
+        "bbox": [
+            334,
+            494,
+            620,
+            515
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "equation",
+        "text": "$$\nk _ {z} ^ {1} \\leftarrow k _ {z} ^ {0} \\oplus \\Delta\n$$",
+        "text_format": "latex",
+        "bbox": [
+            334,
+            517,
+            436,
+            534
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "equation",
+        "text": "$$\nr _ {0 1} \\leftarrow H (k _ {x} ^ {0}, 0, 1, \\mathsf {g i d}) \\oplus H (k _ {y} ^ {1}, 0, 1, \\mathsf {g i d}) \\oplus k _ {z} ^ {0}\n$$",
+        "text_format": "latex",
+        "bbox": [
+            334,
+            537,
+            661,
+            556
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "equation",
+        "text": "$$\nr _ {1 0} \\leftarrow H (k _ {x} ^ {1}, 1, 0, \\mathsf {g i d}) \\oplus H (k _ {y} ^ {0}, 1, 0, \\mathsf {g i d}) \\oplus k _ {z} ^ {0}\n$$",
+        "text_format": "latex",
+        "bbox": [
+            334,
+            558,
+            661,
+            577
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "equation",
+        "text": "$$\nr _ {1 1} \\leftarrow H (k _ {x} ^ {1}, 1, 1, \\mathsf {g i d}) \\oplus H (k _ {y} ^ {1}, 1, 1, \\mathsf {g i d}) \\oplus k _ {z} ^ {1}\n$$",
+        "text_format": "latex",
+        "bbox": [
+            334,
+            579,
+            660,
+            599
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "text",
+        "text": "Half Gates",
+        "text_level": 2,
+        "bbox": [
+            112,
+            633,
+            223,
+            650
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "text",
+        "text": "For our last trick, we will show how to leverage Free-XOR-style encodings to further reduce the size of AND gates from 3λ bits to 2λ bits.",
+        "bbox": [
+            111,
+            659,
+            883,
+            689
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "text",
+        "text": "For this last trick, let us consider a special kind of AND gate. Namely, let us suppose that we have a gate $z \\gets x \\cdot y ,$ and suppose that the GC evaluator knows what x is in cleartext. We will get rid of this assumption later. It turns out that by using garbled row reduction, it is easy to encode such a gate with one garbled row. (Indeed, this is the same trick we saw last time for constructing leaky AND gates.)",
+        "bbox": [
+            111,
+            689,
+            885,
+            750
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "text",
+        "text": "The garbler handles this AND gate as follows:",
+        "bbox": [
+            135,
+            750,
+            473,
+            765
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "equation",
+        "text": "$$\n\\begin{array}{l} k _ {z} ^ {0} \\leftarrow H (k _ {x} ^ {0}, \\mathsf {g i d}) \\\\ k _ {z} ^ {1} \\leftarrow k _ {z} ^ {0} \\oplus \\Delta \\\\ r \\leftarrow H (k _ {x} ^ {1}, \\mathsf {g i d}) \\oplus k _ {y} ^ {0} \\oplus k _ {z} ^ {0} \\end{array}\n$$",
+        "text_format": "latex",
+        "bbox": [
+            401,
+            773,
+            593,
+            835
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "text",
+        "text": "At runtime, the evaluator will hold $k _ { x } ^ { 0 } \\oplus x \\Delta$ and $k _ { y } ^ { 0 } \\oplus y \\Delta$ . Recall that we assumed the evaluator knows x. The evaluator can act conditionally, depending on x. If x is zero, then notice that $z = x \\cdot y$ is also zero.",
+        "bbox": [
+            111,
+            844,
+            883,
+            875
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "page_number",
+        "text": "3",
+        "bbox": [
+            493,
+            898,
+            504,
+            910
+        ],
+        "page_idx": 2
+    },
+    {
+        "type": "text",
+        "text": "The evaluator simply computes $H ( k _ { x } ^ { 0 } , \\mathtt { g i d } )$ , which is equal to $k _ { z } ^ { 0 }$ by definition. If x is one, then the evaluator will use the single garbled row r and add in her label for wire y. In particular, she computes:",
+        "bbox": [
+            111,
+            90,
+            883,
+            123
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "equation",
+        "text": "$$\n\\begin{array}{r l r} & H (k _ {x} ^ {1}, \\mathsf {g i d}) \\oplus (k _ {y} ^ {0} \\oplus y \\Delta) \\oplus r \\\\ & = H (k _ {x} ^ {1}, \\mathsf {g i d}) \\oplus (k _ {y} ^ {0} \\oplus y \\Delta) \\oplus (H (k _ {x} ^ {1}, \\mathsf {g i d}) \\oplus k _ {y} ^ {0} \\oplus k _ {z} ^ {0}) & \\mathrm{Defn.} r \\\\ & = k _ {z} ^ {0} \\oplus y \\Delta \\\\ & = k _ {z} ^ {0} \\oplus x y \\Delta & x = 1 \\\\ & = k _ {z} ^ {0} \\oplus z \\Delta & z = x y \\end{array}\n$$",
+        "text_format": "latex",
+        "bbox": [
+            223,
+            132,
+            774,
+            234
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "Thus, if the evaluator knows $x ,$ then the parties can garble that gate for only a single ciphertext.",
+        "bbox": [
+            112,
+            244,
+            810,
+            258
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "The above trick is called a garbled half AND gate. It turns out that we can use two of these half AND gates to garble a “full” AND gate, where the evaluator knows neither gate input. In particular, let us recall Beaver’s trick:",
+        "bbox": [
+            111,
+            258,
+            883,
+            304
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "equation",
+        "text": "$$\nx y = (x \\oplus \\alpha) y \\oplus (y \\oplus \\beta) \\alpha \\oplus \\alpha \\beta\n$$",
+        "text_format": "latex",
+        "bbox": [
+            380,
+            304,
+            614,
+            320
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "Notice that this computation involves two AND gates where the left input is masked, and all other computations are XORs (and hence free). Thus, one way to garble an AND gate is as follows:",
+        "bbox": [
+            111,
+            325,
+            883,
+            359
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "• The garbler samples a random triple $\\alpha , \\beta , \\alpha \\beta$ and the parties construct $\\{ \\alpha , \\beta , \\alpha \\beta \\}$ . Constructing these shares are free, since the garbler knows the cleartext values.",
+        "bbox": [
+            135,
+            367,
+            883,
+            398
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "• The parties use Free XOR to compute from $\\{ x \\}$ and {y} masked values $\\{ x \\oplus \\alpha \\}$ and $\\{ y \\oplus \\beta \\}$",
+        "bbox": [
+            135,
+            407,
+            826,
+            424
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "• The garbler includes two extra bits to reveal these masked values to the evaluator. (Alternatively, we can choose α and $\\beta$ to be the color bits on wires. This saves two bits per AND gate.)",
+        "bbox": [
+            135,
+            431,
+            883,
+            464
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "• The parties use two half AND gates to compute $\\{ ( x \\oplus \\alpha ) y \\}$ and $\\{ ( y \\oplus \\beta ) \\alpha \\}$ . This costs two garbled rows.",
+        "bbox": [
+            135,
+            472,
+            883,
+            503
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "• The parties use Free XOR to complete the computation:",
+        "bbox": [
+            135,
+            513,
+            563,
+            529
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "equation",
+        "text": "$$\n\\{x y \\} = \\{(x \\oplus \\alpha) y \\oplus (y \\oplus \\beta) \\alpha \\oplus \\alpha \\beta \\}\n$$",
+        "text_format": "latex",
+        "bbox": [
+            387,
+            540,
+            648,
+            556
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "Thus, we can indeed garble an AND gate for two ciphertexts.",
+        "bbox": [
+            112,
+            574,
+            557,
+            589
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "Exercise 1. Reflect on how a cheating garbler can corrupt this AND gate. What avenues does he have to attack the protocol?",
+        "bbox": [
+            111,
+            599,
+            885,
+            628
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "Exercise 2. (Hard.) It turns out that an AND gate can also be garbled for ≈ 3/2λ bits. Investigate the “three halves” technique [RR21]. There is mounting evidence that this surprising technique is essentially optimal.",
+        "bbox": [
+            111,
+            638,
+            885,
+            684
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "Next Time",
+        "text_level": 2,
+        "bbox": [
+            111,
+            703,
+            223,
+            719
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "Today, we saw ways to optimize the cost of the garbled circuit technique. These techniques help to make garbling a more practical mechanism.",
+        "bbox": [
+            111,
+            727,
+            883,
+            758
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "Moreover, the optimizations today establish a connection between garbled wire values and authenticated shares {x}. Next time, we will leverage this new connection to achieve maliciously secure garbling that prevents the garbler from cheating. Roughly speaking, this will involve using our preprocessing functionality to prevent the garbler from corrupting the garbling of AND gates.",
+        "bbox": [
+            109,
+            758,
+            883,
+            820
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "page_number",
+        "text": "4",
+        "bbox": [
+            493,
+            898,
+            504,
+            909
+        ],
+        "page_idx": 3
+    },
+    {
+        "type": "text",
+        "text": "References",
+        "text_level": 2,
+        "bbox": [
+            114,
+            87,
+            243,
+            106
+        ],
+        "page_idx": 4
+    },
+    {
+        "type": "ref_text",
+        "text": "[KS08] Vladimir Kolesnikov and Thomas Schneider. Improved garbled circuit: Free XOR gates and applications. In Luca Aceto, Ivan Damg˚ard, Leslie Ann Goldberg, Magn´us M. Halld´orsson, Anna Ing´olfsd´ottir, and Igor Walukiewicz, editors, ICALP 2008, Part II, volume 5126 of LNCS, pages 486–498. Springer, Berlin, Heidelberg, July 2008.",
+        "bbox": [
+            114,
+            118,
+            883,
+            179
+        ],
+        "page_idx": 4
+    },
+    {
+        "type": "ref_text",
+        "text": "[RR21] Mike Rosulek and Lawrence Roy. Three halves make a whole? Beating the half-gates lower bound for garbled circuits. In Tal Malkin and Chris Peikert, editors, CRYPTO 2021, Part I, volume 12825 of LNCS, pages 94–124, Virtual Event, August 2021. Springer, Cham.",
+        "bbox": [
+            116,
+            188,
+            883,
+            234
+        ],
+        "page_idx": 4
+    },
+    {
+        "type": "ref_text",
+        "text": "[ZRE15] Samee Zahur, Mike Rosulek, and David Evans. Two halves make a whole - reducing data transfer in garbled circuits using half gates. In Elisabeth Oswald and Marc Fischlin, editors, EURO-CRYPT 2015, Part II, volume 9057 of LNCS, pages 220–250. Springer, Berlin, Heidelberg, April 2015.",
+        "bbox": [
+            114,
+            244,
+            883,
+            303
+        ],
+        "page_idx": 4
+    },
+    {
+        "type": "page_number",
+        "text": "5",
+        "bbox": [
+            493,
+            898,
+            504,
+            910
+        ],
+        "page_idx": 4
+    }
+]
